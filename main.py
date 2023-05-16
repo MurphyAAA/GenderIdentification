@@ -84,7 +84,7 @@ def logpdf_GAU_ND(x, mu, C):  # 概率密度、likelihood，x是未去中心化�
     a = M * np.log(2 * np.pi)
     _, b = np.linalg.slogdet(C)  #log|C| 矩阵C的绝对值的log  返回值第一个是符号，第二个是log|C|
     xc = (x - mu)
-    print(mu.shape)
+    # print(mu.shape)
     # xc应该每行循环列数次
     c = np.dot(xc.T, np.linalg.inv(C)) #np.linalg.inv求矩阵的逆
 
@@ -92,7 +92,7 @@ def logpdf_GAU_ND(x, mu, C):  # 概率密度、likelihood，x是未去中心化�
 
     c = np.diagonal(c)  # 点乘完了取对角线就ok
     return (-1.0 / 2.0) * (a + b + c) # 密度函数的log
-def MVG(DTR, LTR, DTE):
+def MVG(DTR, LTR, DTE, method = "MVG"):
     DTR0 = DTR[:,LTR == 0] # 0类的所有Data
     DTR1 = DTR[:,LTR == 1] # 1类的所有Data
     mu0 = mcol(DTR0.mean(1))
@@ -103,16 +103,81 @@ def MVG(DTR, LTR, DTE):
     # 协方差
     C0 = np.dot(DTRc0, DTRc0.T) / DTRc0.shape[1]
     C1 = np.dot(DTRc1, DTRc1.T) / DTRc1.shape[1]
+    if method == "Bayes":
+        identity = np.identity(DTR.shape[0])
+        C0 = C0*identity
+        C1 = C1*identity
     # likelihood
-    tll0 = np.exp(logpdf_GAU_ND(DTE, mu0, C0))
-    tll1 = np.exp(logpdf_GAU_ND(DTE, mu1, C1))
-    S = np.vstack((tll0, tll1)) # score
+    # tll0 = np.exp(logpdf_GAU_ND(DTE, mu0, C0))
+    # tll1 = np.exp(logpdf_GAU_ND(DTE, mu1, C1))
+    # S = np.vstack((tll0, tll1)) # score
+    # Priori = 1/3
+    # SJoint = S * Priori
+    # SMarginal = mrow(SJoint.sum(0))
+    # SPost = SJoint / SMarginal
+
+    # log-likelihood
+    tlogll0 = logpdf_GAU_ND(DTE, mu0, C0)
+    tlogll1 = logpdf_GAU_ND(DTE, mu1, C1)
+    logS = np.vstack((tlogll0, tlogll1))
     Priori = 1/3
-    SJoint = S * Priori
-    SMarginal = mrow(SJoint.sum(0))
-    SPost = SJoint / SMarginal
+    logSJoint = logS + np.log(Priori)
+    logSMarginal = mrow(scipy.special.logsumexp(logSJoint, axis=0))
+    logSPost = logSJoint - logSMarginal
+    SPost = np.exp(logSPost)
+
     predict = np.argmax(SPost, axis=0)
     return predict
+
+
+def TiedMVG(DTR, LTR, DTE, method = "MVG"):
+    DTR0 = DTR[:,LTR == 0] # 0类的所有Data
+    DTR1 = DTR[:,LTR == 1] # 1类的所有Data
+    mu0 = mcol(DTR0.mean(1))
+    mu1 = mcol(DTR1.mean(1))
+    # 去中心化
+    DTRc0 = DTR0 - mu0
+    DTRc1 = DTR1 - mu1
+    # 协方差
+
+    # DTR.shape:   (10,1600)
+    # DTRc0.shape: (10, 491)
+    # DTRc1.shape: (10, 1109)
+    C = (np.dot(DTRc0, DTRc0.T)+np.dot(DTRc1, DTRc1.T)) / DTR.shape[1]
+    if method == "Bayes":
+        identity = np.identity(DTR.shape[0])
+        C = C*identity
+
+    # print(f'DTR.shape:{(np.dot(DTRc0, DTRc0.T)+np.dot(DTRc1, DTRc1.T)).shape}')
+    # log-likelihood
+    tlogll0 = logpdf_GAU_ND(DTE, mu0, C)
+    tlogll1 = logpdf_GAU_ND(DTE, mu1, C)
+    logS = np.vstack((tlogll0, tlogll1))
+    Priori = 1/3
+    logSJoint = logS + np.log(Priori)
+    logSMarginal = mrow(scipy.special.logsumexp(logSJoint, axis=0))
+    logSPost = logSJoint - logSMarginal
+    SPost = np.exp(logSPost)
+
+    predict = np.argmax(SPost, axis=0)
+    return predict
+
+def LOO_Gaussian(D, L, method = "MVG", Tied = False):
+    predict = []
+    LVAL = []
+    for i in range(D.shape[1]):  # 不需要使用split函数划分验证集训练集了，使用k-fold( k=1 leave one out)
+        DTR = np.delete(D.copy(), i, axis=1)
+        LTR = np.delete(L.copy(), i, axis=0)
+        DVAL = D[:, i:i + 1].copy()
+        LVAL.append(L[i].copy())
+        if Tied:
+            pre = TiedMVG(DTR, LTR, DVAL,method)
+        else:
+            pre = MVG(DTR, LTR, DVAL,method)
+        predict.append(pre)
+
+    predict = np.array(predict).flatten().tolist()
+    return predict, LVAL
 
 def plot_scatter(D, L):
     D0 = D[:, L == 0]
@@ -156,8 +221,18 @@ if __name__ == '__main__':
 
     (DTR, LTR), (DVAL, LVAL) = split_data(D, L)
     DTE, LTE = load('./data/Test.txt')
+    # models
+    method = ["MVG","Bayes"]
+    # predict = MVG(DTR, LTR, DVAL,"MVG") # acc: 92.5%
+    # predict = MVG(DTR, LTR, DVAL, "Bayes") # Bayes method: acc: 92.5%
 
-    predict = MVG(DTR, LTR, DVAL)
+    # predict = TiedMVG(DTR, LTR, DVAL) # acc: 92.5%
+    # predict = TiedMVG(DTR, LTR, DVAL, "Bayes") # acc: 91.875%
 
-    acc, err = computeAccuracy(predict, LVAL) # acc: 92.5%
+    # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=False) # MVG acc: 91.33333333333333%
+    # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=False) # Bayes acc: 91.20833333333334%%
+    # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=True) # TiedMVG acc: 91.5%
+    predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=True) # TiedBayes acc: 91.04166666666667%
 
+    acc, err = computeAccuracy(predict, LVAL)
+    print(f'\nacc: {acc*100}%\nerr: {err*100}%')
