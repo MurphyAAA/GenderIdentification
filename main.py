@@ -68,7 +68,7 @@ def logpdf_GAU_ND(x, mu, C):  # 概率密度、likelihood，x是未去中心化�
     a = M * np.log(2 * np.pi)
     _, b = np.linalg.slogdet(C)  # log|C| 矩阵C的绝对值的log  返回值第一个是符号，第二个是log|C|
     xc = (x - mu)
-    print(mu.shape)
+    # print(mu.shape)
     # xc应该每行循环列数次
     c = np.dot(xc.T, np.linalg.inv(C))  # np.linalg.inv求矩阵的逆
 
@@ -137,9 +137,7 @@ def computeAccuracy(predictList, L):
             res.append(False)
     corr = res.count(True)
     wrong = res.count(False)
-    print(corr)
-    print(wrong)
-    print(len(res))
+    print(f'\ncorrect number:{corr}\nwrong number:{wrong}\ntotal:{len(res)}')
     acc = corr / len(res)
     err = wrong / len(res)
     return acc, err
@@ -154,16 +152,18 @@ def main():
     # mvg = Models.MVG()
     ## gaussianize the training data
     D_after = gaussianize(D)
-    #plot_hist(D_after, L)
+    # plot_hist(D_after, L)
     # corrlationAnalysis(D)
-    D = PCA(D_after, L, 7)  # Dimensionality reduction  12D -> 10D
+    D = PCA(D_after, L, 12)  # Dimensionality reduction  12D -> 10D
     # # DTR = LDA(DTR,LTR,m)
     (DTR, LTR), (DVAL, LVAL) = split_data(D, L)
     DTE, LTE = load('./data/Test.txt')
     predict = MVG(DTR, LTR, DVAL)
     acc, err = computeAccuracy(predict, LVAL)  # acc: 92.5%
-    print("test")
-    print(acc,err)
+    print("-----------test-----------")
+    print(f'|acc:{acc*100}%, err:{err*100}%|')
+    print("--------------------------")
+
 
 
 
