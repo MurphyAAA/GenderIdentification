@@ -100,14 +100,7 @@ def MVG(DTR, LTR, DTE, method = "MVG"):
         identity = np.identity(DTR.shape[0])
         C0 = C0*identity
         C1 = C1*identity
-    # likelihood
-    # tll0 = np.exp(logpdf_GAU_ND(DTE, mu0, C0))
-    # tll1 = np.exp(logpdf_GAU_ND(DTE, mu1, C1))
-    # S = np.vstack((tll0, tll1)) # score
-    # Priori = 1/3
-    # SJoint = S * Priori
-    # SMarginal = mrow(SJoint.sum(0))
-    # SPost = SJoint / SMarginal
+
 
     # log-likelihood
     tlogll0 = logpdf_GAU_ND(DTE, mu0, C0)
@@ -224,7 +217,7 @@ def main():
     # models
     method = ["MVG", "Bayes"]
     # predict = MVG(DTR, LTR, DVAL,"MVG") # acc: 92.5%
-    # predict = MVG(DTR, LTR, DVAL, "Bayes") # Bayes method: acc: 92.5%
+    predict = MVG(DTR, LTR, DVAL, "Bayes") # Bayes method: acc: 92.5%
 
     # predict = TiedMVG(DTR, LTR, DVAL) # acc: 92.5%
     # predict = TiedMVG(DTR, LTR, DVAL, "Bayes") # acc: 91.875%
@@ -232,7 +225,7 @@ def main():
     # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=False) # MVG acc: 91.33333333333333%
     # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=False) # Bayes acc: 91.20833333333334%%
     # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=True) # TiedMVG acc: 91.5%
-    predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=True)  # TiedBayes acc: 91.04166666666667%
+    # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=True)  # TiedBayes acc: 91.04166666666667%
 
     acc, err = computeAccuracy(predict, LVAL)  # acc: 92.5%
     print("-----------test-----------")
