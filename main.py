@@ -6,18 +6,7 @@ from DataPrepareShow import *
 
 
 
-def split_data(D, L, seed=0):
-    nTrain = int(D.shape[1] * 2.0 / 3.0)
-    np.random.seed(seed) # 设置种子
 
-    idx = np.random.permutation(D.shape[1]) # 将n个samples的索引顺序打乱
-    idxTrain = idx[0:nTrain]
-    idxVal = idx[nTrain:]
-    DTR = D[:, idxTrain]
-    DVAL = D[:, idxVal]
-    LTR = L[idxTrain]
-    LVAL = L[idxVal]
-    return (DTR, LTR), (DVAL, LVAL)
 
 
 def PCA(D,L, m):
@@ -165,6 +154,68 @@ def TiedMVG(DTR, LTR, DTE, method = "MVG"):
     predict = np.argmax(SPost, axis=0)
     return predict
 
+##kfold for hyperparameter
+## hyper:  dict{hypername:val}
+## model: string
+## K: int
+## D: 12*2400
+## L : array([1,0,0,0...]) 2400
+def KFoldHyper(hyper, model, K, D, L):
+    ## DD: 12 * 720
+    D0 = D[:, L == 0]
+    L0 = [x for x in L if x == 0]
+    ## DD: 12 * 1680
+    D1 = D[:, L == 1]
+    L1 = [x for x in L if x == 1]
+
+    ## shuffle the sample
+    np.random.seed(seed)
+    ind0 = np.random.permutation(D0.shape[1])
+    ind1 = np.random.permutation(D1.shape[1])
+    for i in range(K):
+        sInFoldD0 = D0.shape[1] / K
+        sInFoldD1 = D1.shape[1] / K
+        ## choice ind
+        valD0Ind = ind0[i * sInFoldD0  : (i+1) * sInFoldD0 ]
+        traD0Ind = [x for x in ind0 if x not in valD0Ind]
+        D0VAL = D0[:,valD0Ind]
+        D0TR = D0[:, traD0Ind]
+        L0VAL = L[valD0Ind]
+        L0TR = L[traD0Ind]
+
+        valD1Ind = ind1[i * sInFoldD1  : (i+1) * sInFoldD1 ]
+        traD1Ind = [x for x in ind1 if x not in valD1Ind]
+        D1VAL = D1[:,valD1Ind]
+        D1TR = D1[:, traD1Ind]
+        L1VAL = L[valD1Ind]
+        L1TR =L[traD1Ind]
+
+        ## combine D0TR + D1TR
+        DTR = np.concatenate((D0TR,D1TR),axis=1)
+        LTR = np.concatenate((L0TR,L1TR),axis=1)
+        DVAL = np.concatenate((D0VAL,D1VAL),axis=1)
+        LVAL = np.concatenate((L0VAL,L1VAL),axis=1)
+
+
+        if model == "MVG":
+            predictList = MVG(DTR, LTR, DTE, method = "MVG")
+            acc[i], err[i] =  computeAccuracy(predictList,LVAL)
+            return acc[i], err[i]
+
+
+
+def split_data(D, L, seed=0):
+    nTrain = int(D.shape[1] * 2.0 / 3.0)
+    np.random.seed(seed) # 设置种子
+
+    idx = np.random.permutation(D.shape[1]) # 将n个samples的索引顺序打乱
+    idxTrain = idx[0:nTrain]
+    idxVal = idx[nTrain:]
+    DTR = D[:, idxTrain]
+    DVAL = D[:, idxVal]
+    LTR = L[idxTrain]
+    LVAL = L[idxVal]
+    return (DTR, LTR), (DVAL, LVAL)
 def LOO_Gaussian(D, L, method = "MVG", Tied = False):
     predict = []
     LVAL = []
