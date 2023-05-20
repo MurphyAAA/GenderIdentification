@@ -5,11 +5,7 @@ from scipy import stats
 from DataPrepareShow import *
 
 
-
-
-
-
-def PCA(D,L, m):
+def PCA(D, L, m):
     mu = mcol(D.mean(1))  # mean of each feature
     # centralized
     DC = D - mu
@@ -24,6 +20,7 @@ def PCA(D,L, m):
     # print(f'DP: {DP.shape}')
     # print(f'L: {L.shape}')
     return DP
+
 
 def LDA(D, L, m):
     N = D.shape[1]
@@ -63,25 +60,29 @@ def logpdf_GAU_ND(x, mu, C):  # 概率密度、likelihood，x是未去中心化�
     c = np.dot(c, xc)
 
     c = np.diagonal(c)  # 点乘完了取对角线就ok
-    return (-1.0 / 2.0) * (a + b + c) # 密度函数的log
+    return (-1.0 / 2.0) * (a + b + c)  # 密度函数的log
 
-def logpdf_GAU_ND_fast(X,mu,C):
-    XC = X- mu
+
+def logpdf_GAU_ND_fast(X, mu, C):
+    XC = X - mu
     M = X.shape[0]
-    const = -0.5 * M * np.log(2*np.pi)
+    const = -0.5 * M * np.log(2 * np.pi)
     logdet = np.linalg.slogdet(C)[1]
     L = np.linalg.inv(C)
-    v = (XC * np.dot(L,XC)).sum(0)
+    v = (XC * np.dot(L, XC)).sum(0)
     return const - 0.5 * logdet - 0.5 * v
+
 
 def bayes_decision_threshold(pi1, Cfn, Cfp):
     t = np.log(pi1 * Cfn)
-    t = t - np.log((1-pi1) * Cfp)
+    t = t - np.log((1 - pi1) * Cfp)
     t = -t
     return t
-def MVG(DTR, LTR, DTE, method = "MVG"):
-    DTR0 = DTR[:,LTR == 0] # 0类的所有Data
-    DTR1 = DTR[:,LTR == 1] # 1类的所有Data
+
+
+def MVG(DTR, LTR, DTE, method="MVG"):
+    DTR0 = DTR[:, LTR == 0]  # 0类的所有Data
+    DTR1 = DTR[:, LTR == 1]  # 1类的所有Data
     mu0 = mcol(DTR0.mean(1))
     mu1 = mcol(DTR1.mean(1))
     # 去中心化
@@ -92,15 +93,14 @@ def MVG(DTR, LTR, DTE, method = "MVG"):
     C1 = np.dot(DTRc1, DTRc1.T) / DTRc1.shape[1]
     if method == "Bayes":
         identity = np.identity(DTR.shape[0])
-        C0 = C0*identity
-        C1 = C1*identity
-
+        C0 = C0 * identity
+        C1 = C1 * identity
 
     # log-likelihood
     tlogll0 = logpdf_GAU_ND(DTE, mu0, C0)
     tlogll1 = logpdf_GAU_ND(DTE, mu1, C1)
 
-    Priori = 1/2
+    Priori = 1 / 2
     # logS = np.vstack((tlogll0, tlogll1))
     # logSJoint = logS + np.log(Priori)
     # logSMarginal = mrow(scipy.special.logsumexp(logSJoint, axis=0))
@@ -113,18 +113,19 @@ def MVG(DTR, LTR, DTE, method = "MVG"):
     t = bayes_decision_threshold(Priori, 1, 1)
     predict = []
     for r in llr:
-        if r>t:
+        if r > t:
             predict.append(1)
         else:
             predict.append(0)
 
-    return np.array(predict)
+    parameter = [{"mu0": mu0, "C0": C0}, {"mu1": mu1, "C1": C1}]
+    return np.array(predict), parameter
     # DCF就是使用新的threshold 通过两个类likelihood的比值和这个新的t比较进行预测，而不是直接选最大的后验概率了！
 
 
-def TiedMVG(DTR, LTR, DTE, method = "MVG"):
-    DTR0 = DTR[:,LTR == 0] # 0类的所有Data
-    DTR1 = DTR[:,LTR == 1] # 1类的所有Data
+def TiedMVG(DTR, LTR, DTE, method="MVG"):
+    DTR0 = DTR[:, LTR == 0]  # 0类的所有Data
+    DTR1 = DTR[:, LTR == 1]  # 1类的所有Data
     mu0 = mcol(DTR0.mean(1))
     mu1 = mcol(DTR1.mean(1))
     # 去中心化
@@ -135,17 +136,17 @@ def TiedMVG(DTR, LTR, DTE, method = "MVG"):
     # DTR.shape:   (10,1600)
     # DTRc0.shape: (10, 491)
     # DTRc1.shape: (10, 1109)
-    C = (np.dot(DTRc0, DTRc0.T)+np.dot(DTRc1, DTRc1.T)) / DTR.shape[1]
+    C = (np.dot(DTRc0, DTRc0.T) + np.dot(DTRc1, DTRc1.T)) / DTR.shape[1]
     if method == "Bayes":
         identity = np.identity(DTR.shape[0])
-        C = C*identity
+        C = C * identity
 
     # print(f'DTR.shape:{(np.dot(DTRc0, DTRc0.T)+np.dot(DTRc1, DTRc1.T)).shape}')
     # log-likelihood
     tlogll0 = logpdf_GAU_ND(DTE, mu0, C)
     tlogll1 = logpdf_GAU_ND(DTE, mu1, C)
     logS = np.vstack((tlogll0, tlogll1))
-    Priori = 1/2
+    Priori = 1 / 2
     logSJoint = logS + np.log(Priori)
     logSMarginal = mrow(scipy.special.logsumexp(logSJoint, axis=0))
     logSPost = logSJoint - logSMarginal
@@ -153,6 +154,7 @@ def TiedMVG(DTR, LTR, DTE, method = "MVG"):
 
     predict = np.argmax(SPost, axis=0)
     return predict
+
 
 ##kfold for hyperparameter
 ## hyper:  dict{hypername:val}
@@ -163,52 +165,71 @@ def TiedMVG(DTR, LTR, DTE, method = "MVG"):
 def KFoldHyper(hyper, model, K, D, L):
     ## DD: 12 * 720
     D0 = D[:, L == 0]
-    L0 = [x for x in L if x == 0]
+    # mask = np.isin(arr, values)
+    # # Extract values that match the condition
+    # matching_values = arr[mask]
+    L0 = L[L == 0]
+
     ## DD: 12 * 1680
     D1 = D[:, L == 1]
-    L1 = [x for x in L if x == 1]
-
+    ## error since will return to list
+    # L1 = [x for x in L if x == 1]
+    L1 = L[L == 1]
     ## shuffle the sample
-    np.random.seed(seed)
+    np.random.seed(seed=0)
     ind0 = np.random.permutation(D0.shape[1])
     ind1 = np.random.permutation(D1.shape[1])
+    bestAcc = 0
+    ## {acc: [{mu0 :xx}, {mu1:yy}, {c0:xx},{c1:yy}]}
+    bestCom = {}
     for i in range(K):
-        sInFoldD0 = D0.shape[1] / K
-        sInFoldD1 = D1.shape[1] / K
+        sInFoldD0 = int(D0.shape[1] / K)
+        sInFoldD1 = int(D1.shape[1] / K)
         ## choice ind
-        valD0Ind = ind0[i * sInFoldD0  : (i+1) * sInFoldD0 ]
-        traD0Ind = [x for x in ind0 if x not in valD0Ind]
-        D0VAL = D0[:,valD0Ind]
-        D0TR = D0[:, traD0Ind]
-        L0VAL = L[valD0Ind]
-        L0TR = L[traD0Ind]
 
-        valD1Ind = ind1[i * sInFoldD1  : (i+1) * sInFoldD1 ]
+        valD0Ind = ind0[i * sInFoldD0: (i + 1) * sInFoldD0]
+        traD0Ind = [x for x in ind0 if x not in valD0Ind]
+        D0VAL = D0[:, valD0Ind]
+        D0TR = D0[:, traD0Ind]
+
+        L0VAL = L0[valD0Ind]
+        L0TR = L0[traD0Ind]
+
+        valD1Ind = ind1[i * sInFoldD1: (i + 1) * sInFoldD1]
         traD1Ind = [x for x in ind1 if x not in valD1Ind]
-        D1VAL = D1[:,valD1Ind]
+        D1VAL = D1[:, valD1Ind]
         D1TR = D1[:, traD1Ind]
-        L1VAL = L[valD1Ind]
-        L1TR =L[traD1Ind]
+        L1VAL = L1[valD1Ind]
+        L1TR = L1[traD1Ind]
 
         ## combine D0TR + D1TR
-        DTR = np.concatenate((D0TR,D1TR),axis=1)
-        LTR = np.concatenate((L0TR,L1TR),axis=1)
-        DVAL = np.concatenate((D0VAL,D1VAL),axis=1)
-        LVAL = np.concatenate((L0VAL,L1VAL),axis=1)
-
+        DTR = np.concatenate((D0TR, D1TR), axis=1)
+        LTR = np.concatenate((L0TR, L1TR))
+        DVAL = np.concatenate((D0VAL, D1VAL), axis=1)
+        LVAL = np.concatenate((L0VAL, L1VAL))
+        ## paralist = {acc,[parameter]}
 
         if model == "MVG":
-            predictList = MVG(DTR, LTR, DTE, method = "MVG")
-            acc[i], err[i] =  computeAccuracy(predictList,LVAL)
-            return acc[i], err[i]
+            predictList, parameter = MVG(DTR, LTR, DVAL, method="MVG")
+            a, e = computeAccuracy(predictList, LVAL)
+            if a > bestAcc:
+                bestCom [a] = parameter
+                bestAcc = a
 
+        if model == "LR":
+            predictList, parameter = BLR(DTR, LTR, hyper, DVAL)
+            a, e = computeAccuracy(predictList, LVAL)
+            if a > bestAcc:
+                bestCom[a] = parameter
+                bestAcc = a
+    return bestCom
 
 
 def split_data(D, L, seed=0):
     nTrain = int(D.shape[1] * 2.0 / 3.0)
-    np.random.seed(seed) # 设置种子
+    np.random.seed(seed)  # 设置种子
 
-    idx = np.random.permutation(D.shape[1]) # 将n个samples的索引顺序打乱
+    idx = np.random.permutation(D.shape[1])  # 将n个samples的索引顺序打乱
     idxTrain = idx[0:nTrain]
     idxVal = idx[nTrain:]
     DTR = D[:, idxTrain]
@@ -216,7 +237,9 @@ def split_data(D, L, seed=0):
     LTR = L[idxTrain]
     LVAL = L[idxVal]
     return (DTR, LTR), (DVAL, LVAL)
-def LOO_Gaussian(D, L, method = "MVG", Tied = False):
+
+
+def LOO_Gaussian(D, L, method="MVG", Tied=False):
     predict = []
     LVAL = []
     for i in range(D.shape[1]):  # 不需要使用split函数划分验证集训练集了，使用k-fold( k=1 leave one out)
@@ -225,43 +248,49 @@ def LOO_Gaussian(D, L, method = "MVG", Tied = False):
         DVAL = D[:, i:i + 1].copy()
         LVAL.append(L[i].copy())
         if Tied:
-            pre = TiedMVG(DTR, LTR, DVAL,method)
+            pre = TiedMVG(DTR, LTR, DVAL, method)
         else:
-            pre = MVG(DTR, LTR, DVAL,method)
+            pre = MVG(DTR, LTR, DVAL, method)
         predict.append(pre)
 
     predict = np.array(predict).flatten().tolist()
     return predict, LVAL
 
-def logreg_object(v,DTR, LTR, lam): # loss function
+
+def logreg_object(v, DTR, LTR, lam):  # loss function
     w = v[0:-1]
     b = v[-1]
     w_norm = np.linalg.norm(w)
 
     w = mcol(w)
-    reg_term = (lam/2) * (w_norm**2)
-    negz = -1 * (2*LTR-1)
-    fx = np.dot(w.T,DTR) + b
-    logJ = np.logaddexp(0,negz * fx)
+    reg_term = (lam / 2) * (w_norm ** 2)
+    negz = -1 * (2 * LTR - 1)
+    fx = np.dot(w.T, DTR) + b
+    logJ = np.logaddexp(0, negz * fx)
     mean_logJ = logJ.mean()
     # print(mean_logJ)
     res = reg_term + mean_logJ
-    res = res.reshape(res.size,)
+    res = res.reshape(res.size, )
     return res
-def BLR(DTR, LTR ,lam, DTE):
-    x, f, d = scipy.optimize.fmin_l_bfgs_b(logreg_object,np.zeros(DTR.shape[0] + 1), args =(DTR,LTR,lam), approx_grad=True)
+
+
+def BLR(DTR, LTR, lam, DTE):
+    x, f, d = scipy.optimize.fmin_l_bfgs_b(logreg_object, np.zeros(DTR.shape[0] + 1), args=(DTR, LTR, lam),
+                                           approx_grad=True)
     w = x[0:-1]
     b = x[-1]
     # w = mcol(w)
     s = np.dot(mrow(w), DTE) + b
-    s = s.reshape(s.size,)
+    s = s.reshape(s.size, )
     predict = []
     for i in s:
-        if i>0:
+        if i > 0:
             predict.append(1)
         else:
             predict.append(0)
-    return predict
+    parameter = [{"w": w, "b": b}]
+    return predict, parameter
+
 
 def plot_scatter(D, L):
     D0 = D[:, L == 0]
@@ -297,8 +326,9 @@ def computeAccuracy(predictList, L):
     err = wrong / len(res)
     return acc, err
 
+
 def ConfusionMatrix(predictList, L):
-    CM = np.zeros((2,2)) # 两个类
+    CM = np.zeros((2, 2))  # 两个类
     # real class:    0   1
     # predict   : 0  TN  FN
     #             1  FP  TP
@@ -317,36 +347,55 @@ def main(hyperparameters):
     D_after = gaussianize(D)
     # plot_hist(D_after, L)
     # corrlationAnalysis(D)
-    D = PCA(D_after, L, hyperparameters["m"])  # Dimensionality reduction  12D -> 10D
-    # # DTR = LDA(DTR,LTR,m)
-    (DTR, LTR), (DVAL, LVAL) = split_data(D, L)
-    DTE, LTE = load('./data/Test.txt')
-    # models
-    method = ["MVG", "Bayes"]
-    predict = MVG(DTR, LTR, DVAL,method[0]) # acc:90.0%
-    # predict = MVG(DTR, LTR, DVAL, method[1]) # Bayes method: acc: 90.0%
 
-    # predict = TiedMVG(DTR, LTR, DVAL, method[0]) # acc: 90.375%
-    # predict = TiedMVG(DTR, LTR, DVAL, method[1]) # acc: 90.375%
+    # D = PCA(D_after, L, hyperparameters["m"])  # Dimensionality reduction  12D -> 10D
+    # # # DTR = LDA(DTR,LTR,m)
+    # (DTR, LTR), (DVAL, LVAL) = split_data(D, L)
+    # DTE, LTE = load('./data/Test.txt')
+    # # models
+    # method = ["MVG", "Bayes"]
+    # predict = MVG(DTR, LTR, DVAL,method[0]) # acc:90.0%
+    # # predict = MVG(DTR, LTR, DVAL, method[1]) # Bayes method: acc: 90.0%
+    #
+    # # predict = TiedMVG(DTR, LTR, DVAL, method[0]) # acc: 90.375%
+    # # predict = TiedMVG(DTR, LTR, DVAL, method[1]) # acc: 90.375%
+    #
+    # # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=False) # MVG acc: 90.66666666666666%
+    # # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=False) # Bayes acc: 90.54166666666667%
+    # # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=True) # TiedMVG acc: 90.54166666666667%
+    # # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=True)  # TiedBayes acc: 90.625%
+    #
+    # # predict = BLR(DTR,LTR,hyperparameters["l"],DVAL) # acc: 92%
+    # acc, err = computeAccuracy(predict, LVAL)
+    #
+    # CM = ConfusionMatrix(predict,LVAL)
+    # print(CM)
+    # print("-----------test-----------")
+    # print(f'|acc:{acc*100}%, err:{err*100}%|')
+    # print("--------------------------")
 
-    # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=False) # MVG acc: 90.66666666666666%
-    # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=False) # Bayes acc: 90.54166666666667%
-    # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=True) # TiedMVG acc: 90.54166666666667%
-    # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=True)  # TiedBayes acc: 90.625%
-
-    # predict = BLR(DTR,LTR,hyperparameters["l"],DVAL) # acc: 92%
-    acc, err = computeAccuracy(predict, LVAL)
-
-    CM = ConfusionMatrix(predict,LVAL)
-    print(CM)
-    print("-----------test-----------")
-    print(f'|acc:{acc*100}%, err:{err*100}%|')
-    print("--------------------------")
+    #print(KFoldHyper(1, "MVG", 3, D, L))
 
 
+    # hyperList = [0.001, 0.1, 1, 10]
+    # bestAcc  = 0
+    # bestPar = {}
+    # for i in hyperList:
+    #     resCom = KFoldHyper(i, "LR", 3, D, L) ## {acc: [{W:xx},{b:xx}]}
+    #     curAcc = resCom.keys[0]
+    #     if  curAcc > bestAcc:
+    #         bestAcc = curAcc
+    #         bestPar[res.keys[0]] = res.values[0]
+    #     return bestPar
+
+def modelSelection():
+    return
+
+
+##?1: accuracy is the value to pick a best model?
+##2: compare average accuracy for each hyperparameter, or max accuracy
 
 if __name__ == '__main__':
-
     # Hyperparameters
-    hyperparameters = {"m" : 10, "l" : 0.001}
+    hyperparameters = {"m": 10, "l": 0.001}
     main(hyperparameters)
