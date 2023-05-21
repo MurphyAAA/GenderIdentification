@@ -85,6 +85,11 @@ def logpdf_GAU_ND_fast(X,mu,C):
     v = (XC * np.dot(L,XC)).sum(0)
     return const - 0.5 * logdet - 0.5 * v
 
+def bayes_decision_threshold(pi1, Cfn, Cfp):
+    t = np.log(pi1 * Cfn)
+    t = t - np.log((1-pi1) * Cfp)
+    t = -t
+    return t
 def MVG(DTR, LTR, DTE, method = "MVG"):
     DTR0 = DTR[:,LTR == 0] # 0类的所有Data
     DTR1 = DTR[:,LTR == 1] # 1类的所有Data
@@ -105,15 +110,27 @@ def MVG(DTR, LTR, DTE, method = "MVG"):
     # log-likelihood
     tlogll0 = logpdf_GAU_ND(DTE, mu0, C0)
     tlogll1 = logpdf_GAU_ND(DTE, mu1, C1)
-    logS = np.vstack((tlogll0, tlogll1))
-    Priori = 1/3
-    logSJoint = logS + np.log(Priori)
-    logSMarginal = mrow(scipy.special.logsumexp(logSJoint, axis=0))
-    logSPost = logSJoint - logSMarginal
-    SPost = np.exp(logSPost)
 
-    predict = np.argmax(SPost, axis=0)
-    return predict
+    Priori = 1/2
+    # logS = np.vstack((tlogll0, tlogll1))
+    # logSJoint = logS + np.log(Priori)
+    # logSMarginal = mrow(scipy.special.logsumexp(logSJoint, axis=0))
+    # logSPost = logSJoint - logSMarginal
+    # SPost = np.exp(logSPost)
+    #
+    # predict = np.argmax(SPost, axis=0)
+
+    llr = tlogll1 - tlogll0
+    t = bayes_decision_threshold(Priori, 1, 1)
+    predict = []
+    for r in llr:
+        if r>t:
+            predict.append(1)
+        else:
+            predict.append(0)
+
+    return np.array(predict)
+    # DCF就是使用新的threshold 通过两个类likelihood的比值和这个新的t比较进行预测，而不是直接选最大的后验概率了！
 
 
 def TiedMVG(DTR, LTR, DTE, method = "MVG"):
@@ -139,7 +156,7 @@ def TiedMVG(DTR, LTR, DTE, method = "MVG"):
     tlogll0 = logpdf_GAU_ND(DTE, mu0, C)
     tlogll1 = logpdf_GAU_ND(DTE, mu1, C)
     logS = np.vstack((tlogll0, tlogll1))
-    Priori = 1/3
+    Priori = 1/2
     logSJoint = logS + np.log(Priori)
     logSMarginal = mrow(scipy.special.logsumexp(logSJoint, axis=0))
     logSPost = logSJoint - logSMarginal
@@ -164,6 +181,36 @@ def LOO_Gaussian(D, L, method = "MVG", Tied = False):
 
     predict = np.array(predict).flatten().tolist()
     return predict, LVAL
+
+def logreg_object(v,DTR, LTR, lam): # loss function
+    w = v[0:-1]
+    b = v[-1]
+    w_norm = np.linalg.norm(w)
+
+    w = mcol(w)
+    reg_term = (lam/2) * (w_norm**2)
+    negz = -1 * (2*LTR-1)
+    fx = np.dot(w.T,DTR) + b
+    logJ = np.logaddexp(0,negz * fx)
+    mean_logJ = logJ.mean()
+    # print(mean_logJ)
+    res = reg_term + mean_logJ
+    res = res.reshape(res.size,)
+    return res
+def BLR(DTR, LTR ,lam, DTE):
+    x, f, d = scipy.optimize.fmin_l_bfgs_b(logreg_object,np.zeros(DTR.shape[0] + 1), args =(DTR,LTR,lam), approx_grad=True)
+    w = x[0:-1]
+    b = x[-1]
+    # w = mcol(w)
+    s = np.dot(mrow(w), DTE) + b
+    s = s.reshape(s.size,)
+    predict = []
+    for i in s:
+        if i>0:
+            predict.append(1)
+        else:
+            predict.append(0)
+    return predict
 
 def plot_scatter(D, L):
     D0 = D[:, L == 0]
@@ -199,9 +246,18 @@ def computeAccuracy(predictList, L):
     err = wrong / len(res)
     return acc, err
 
-def main():
-    # Hyperparameters
-    m = 10  # 12D -> 10D 降维后的维度
+def ConfusionMatrix(predictList, L):
+    CM = np.zeros((2,2)) # 两个类
+    # real class:    0   1
+    # predict   : 0  TN  FN
+    #             1  FP  TP
+    #
+    for i in range(predictList.size):
+        CM[predictList[i], L[i]] += 1
+    return CM
+
+
+def main(hyperparameters):
     # D [ x0, x1, x2, x3, ...]  xi是列向量，每行都是一个feature
     D, L = load('./data/Train.txt')
     ## plot_hist(D,L)
@@ -210,59 +266,36 @@ def main():
     D_after = gaussianize(D)
     # plot_hist(D_after, L)
     # corrlationAnalysis(D)
-    D = PCA(D_after, L, m)  # Dimensionality reduction  12D -> 10D
+    D = PCA(D_after, L, hyperparameters["m"])  # Dimensionality reduction  12D -> 10D
     # # DTR = LDA(DTR,LTR,m)
     (DTR, LTR), (DVAL, LVAL) = split_data(D, L)
     DTE, LTE = load('./data/Test.txt')
     # models
     method = ["MVG", "Bayes"]
-    # predict = MVG(DTR, LTR, DVAL,"MVG") # acc: 92.5%
-    predict = MVG(DTR, LTR, DVAL, "Bayes") # Bayes method: acc: 92.5%
+    predict = MVG(DTR, LTR, DVAL,method[0]) # acc:90.0%
+    # predict = MVG(DTR, LTR, DVAL, method[1]) # Bayes method: acc: 90.0%
 
-    # predict = TiedMVG(DTR, LTR, DVAL) # acc: 92.5%
-    # predict = TiedMVG(DTR, LTR, DVAL, "Bayes") # acc: 91.875%
+    # predict = TiedMVG(DTR, LTR, DVAL, method[0]) # acc: 90.375%
+    # predict = TiedMVG(DTR, LTR, DVAL, method[1]) # acc: 90.375%
 
-    # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=False) # MVG acc: 91.33333333333333%
-    # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=False) # Bayes acc: 91.20833333333334%%
-    # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=True) # TiedMVG acc: 91.5%
-    # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=True)  # TiedBayes acc: 91.04166666666667%
+    # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=False) # MVG acc: 90.66666666666666%
+    # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=False) # Bayes acc: 90.54166666666667%
+    # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=True) # TiedMVG acc: 90.54166666666667%
+    # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=True)  # TiedBayes acc: 90.625%
 
-    acc, err = computeAccuracy(predict, LVAL)  # acc: 92.5%
+    # predict = BLR(DTR,LTR,hyperparameters["l"],DVAL) # acc: 92%
+    acc, err = computeAccuracy(predict, LVAL)
+
+    CM = ConfusionMatrix(predict,LVAL)
+    print(CM)
     print("-----------test-----------")
     print(f'|acc:{acc*100}%, err:{err*100}%|')
     print("--------------------------")
-
-# if __name__ == '__main__':
-#     # Hyperparameters
-#     m = 10 # 12D -> 10D 降维后的维度
-#     # D [ x0, x1, x2, x3, ...]  xi是列向量，每行都是一个feature
-#     D, L = load('./data/Train.txt')
-#     D = PCA(D,m) # Dimensionality reduction  12D -> 10D
-#     # DTR = LDA(DTR,LTR,m)
-#
-#     (DTR, LTR), (DVAL, LVAL) = split_data(D, L)
-#     DTE, LTE = load('./data/Test.txt')
-#
-#     predict = MVG(DTR, LTR, DVAL)
-#
-#     acc, err = computeAccuracy(predict, LVAL) # acc: 92.5%
-
 
 
 
 if __name__ == '__main__':
 
-    main()
     # Hyperparameters
-    # m = 10  # 12D -> 10D 降维后的维度
-    # # D [ x0, x1, x2, x3, ...]  xi是列向量，每行都是一个feature
-    # D, L = load('./data/Train.txt')
-    # D = PCA(D, m)  # Dimensionality reduction  12D -> 10D
-    # # DTR = LDA(DTR,LTR,m)
-    #
-    # (DTR, LTR), (DVAL, LVAL) = split_data(D, L)
-    # DTE, LTE = load('./data/Test.txt')
-    #
-    # predict = MVG(DTR, LTR, DVAL)
-    #
-    # acc, err = computeAccuracy(predict, LVAL)  # acc: 92.5%
+    hyperparameters = {"m" : 10, "l" : 0.001}
+    main(hyperparameters)

@@ -57,7 +57,7 @@ def corrlationAnalysis(D):
     corr_matrix = df.corr();
     sns.heatmap(corr_matrix,cmap="YlGnBu")
     print(corr_matrix)
-    plt.savefig('heatmap_D')
+    plt.savefig('images/heatmap_D')
     plt.show()
 
 def plot_hist(D,L):
@@ -71,7 +71,7 @@ def plot_hist(D,L):
         plt.hist(D1[ind, :], bins=30, density=True, alpha=0.4, label='female')
         plt.legend()
         plt.tight_layout()
-       # plt.savefig('GAU_hist_%d.pdf' % ind)
+       # plt.savefig('images/GAU_hist_%d.pdf' % ind)
     plt.show()
 
 
