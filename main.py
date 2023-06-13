@@ -21,9 +21,36 @@ def PCA(D, L, m):
 
     P = U[:, 0:m]
     DP = np.dot(P.T, D)
-    # plot_scatter(DP, L)
+
+    D1x = DP[0, L == 0]
+    D2x = DP[0, L == 1]
+
+    D1y = DP[1, L == 0]
+    D2y = DP[1, L == 1]
+
+    explain_variance = s/np.sum(s)
+    plt.plot(np.cumsum(explain_variance))
+    plt.xlabel('Number of Principal Components')
+    plt.ylabel('Explained Variance')
+    plt.title('Explained Variance by Principal Components')
+    plt.grid(True)
+    plt.show()
+
+
+    # plt.scatter(D1y, D1x, alpha=0.4,label='male')
+    # plt.scatter(D2y, D2x, alpha=0.4, label='female')
+    # plt.hist(DP[0, L == 0], bins=30, density=True, alpha=0.4, label='male')
+    # plt.hist(DP[0, L == 1], bins=30, density=True, alpha=0.4, label='female')
+    # plt.hist(DP[0, L == 0], bins=30, density=True, alpha=0.4, label='male')
+    # plt.hist(DP[0, L == 1], bins=30, density=True, alpha=0.4, label='female')
+    # plt.legend()
+    # plt.tight_layout()
+
+    # plt.show()
     # print(f'DP: {DP.shape}')
     # print(f'L: {L.shape}')
+
+
     return DP
 
 
@@ -49,7 +76,7 @@ def LDA(D, L, m):
     # print(s)
     W = U[:, ::-1][:, 0:1]  # biggest eigenvector 2分类。can only reduced to 1D
     Dp = np.dot(W.T, D)
-    # print(Dp.shape)
+    print(Dp.shape)
     return Dp
 
 
@@ -163,15 +190,19 @@ def KFold(modelName, K, D, L, th, hyperPar):
             score.append(model.score())
             label.append(LVAL)
 
-        a, e = model.computeAccuracy()
-        if a > bestAcc:
-            bestPar = model.parameter
-            bestAcc = a
+        # a, e = model.computeAccuracy()
+        # if a > bestAcc:
+        #     bestPar = model.parameter
+        #     bestAcc = a
     # score = np.concatenate([arr for arr in score])
     # label = np.concatenate([arr for arr in label])
-
-    minDCF = model.minDcf(score, label,0.5,1,1)
-    return bestPar, bestAcc,model, minDCF
+    piT = D0.shape[1] / D1.shape[1]
+    #print("piT is {}".format(piT))
+    Cfn = 1
+    # piEff = 0.5
+    Cfp = ((piT * Cfn)/ 0.99 - (piT) * Cfn ) / (1 - piT)
+    minDCF = model.minDcf(score, label,piT,1,Cfp)
+    return model, minDCF
 
 
 def split_data(D, L, seed=0):
@@ -230,18 +261,17 @@ def plot_scatter(D, L):
 
 
 def KFoldHyper(hyperParList, K, D, L):
-    bestAcc = 0
-
+    bestminDCF = 1
+    bestHyper=0
     for i in hyperParList[0]["lam"]:
-        bestParPerHyper, bestAccPerHyper,model,minDCF = KFold("LR", K, D, L, 1, i)
-        print(minDCF)
-        ## print("lambda = {}: bestParaMeter:{} bestAcc:{} ".format(i,bestParPerHyper,bestAccPerHyper))
-        if bestAccPerHyper > bestAcc:
-            bestAcc = bestAccPerHyper
-            bestPar = bestParPerHyper
+        model,minDCF = KFold("LR", K, D, L, 1, i)
+        #print(minDCF)
+        print("lambda = {}:  minDCF:{} ".format(i,minDCF))
+        if minDCF < bestminDCF:
+            bestminDCF = minDCF
             bestHyper = i
 
-    return bestAcc, bestPar,bestHyper,model,minDCF
+    return bestHyper,model,minDCF
 def ConfusionMatrix(predictList, L):
     CM = np.zeros((2,2)) # 两个类
     # real class:    0   1
@@ -262,9 +292,30 @@ def main():
     D_after = gaussianize(D)
     # plot_hist(D_after, L)
     # corrlationAnalysis(D)
+    D0 = D[:, L == 0]  # 0类的所有Data
+    D1 = D[:, L == 1]  # 1类的所有Data
+    # D.shape:   (10,1600)
+    # D0.shape: (10, 491)
+    # D1.shape: (10, 1109)
+    # True: 0 False: 1
 
-    # D = PCA(D_after, L, hyperparameters["m"])  # Dimensionality reduction  12D -> 10D
-    # # # DTR = LDA(DTR,LTR,m)
+    D = PCA(D_after, L, 2)  # Dimensionality reduction  12D -> 10D
+    # print(D.shape)
+    # print(D[0,:])
+    # print(D[1, :])
+    #
+    # plot_hist(D[0,:], L)
+    # plot_hist(D[1, :], L)
+    # plt.scatter(D,L)
+    # plt.xlabel('First Principal Component')
+    # plt.ylabel('Second Principal Component')
+    # plt.title('PCA Scatter Plot')
+    # plt.grid(True)
+    # plt.show()
+    #plot_scatter(D, L)
+
+    # D = LDA(D,L,2)
+    # plot_hist(D, L)
     # (DTR, LTR), (DVAL, LVAL) = split_data(D, L)
     # DTE, LTE = load('./data/Test.txt')
     # # models
@@ -291,10 +342,10 @@ def main():
 
 
 
-
-    hyperParList = [{"lam": [10 ** -6, 10 ** -3, 10 ** -1, 1]}]
-    acc, par ,hy,model,minDCF= KFoldHyper(hyperParList, 3, D_after, L)
-    ##print("Logic regression : with hyperparamter lambda = {}  bestParameter:{} : bestAcc:{} ".format(hy, par, acc))
+    #
+    # hyperParList = [{"lam": [10 ** -6, 10 ** -4,10 ** -3]}]
+    # hy,model,minDCF= KFoldHyper(hyperParList, 5, D_after, L)
+    # print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy,  minDCF))
 
 
     # bestPar, bestAcc = KFold("MVG",3,D_after, L,1,0)

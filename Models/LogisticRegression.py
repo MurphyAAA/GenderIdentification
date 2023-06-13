@@ -73,15 +73,19 @@ class LR:
     # def validation(self,DTE,LTE):
     #     ## confusionmatrix
     #     return
-    def minDcf(self, score, label,pi1, Cfn,Cfp):
+    def minDcf(self, score, label, piT, Cfn, Cfp):
         label = np.concatenate(label).flatten()
         scoreArray = np.concatenate([arr for arr in score])
         scoreArray.sort()
+        print(scoreArray)
         score = np.concatenate(score).flatten()
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)
         TPR = np.zeros(scoreArray.size)
         res = np.zeros(scoreArray.size)
+        minDCF = 300
+        minT = 2
+        #{res[idx] : t}
         for idx, t in enumerate(scoreArray):
             Pred = np.int32(score > t)  # 强制类型转换为int32,True 变成1，False 变成0
             Conf = np.zeros((2, 2))
@@ -89,13 +93,20 @@ class LR:
                 for j in range(2):
                     Conf[i, j] = ((Pred == i) * (label == j)).sum()
                     TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
-                    FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0])  != 0.0) else 0
+                    FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
 
 
-            res[idx] = pi1 * Cfn * (1 - TPR[idx]) + (1 - pi1) * Cfp * FPR[idx]
+            #res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
+            res[idx] = 0.99 * (1 - TPR[idx]) + 0.01 * FPR[idx]
+            sysRisk = min(piT * Cfn, (1 - piT) * Cfp)
+            res[idx] = res[idx] / 0.01  # 除 risk of an optimal system
 
-            sysRisk = min(pi1 * Cfn, (1 - pi1) * Cfp)
-            res[idx] = res[idx] / sysRisk  # 除 risk of an optimal system
+            if res[idx] < minDCF:
+                minT = t
+                minDCF = res[idx]
+
+        print(minDCF)
+        print(minT)
         return res.min()
     def computeAccuracy(self):
         res = []
