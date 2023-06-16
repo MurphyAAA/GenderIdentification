@@ -28,13 +28,13 @@ def PCA(D, L, m):
     D1y = DP[1, L == 0]
     D2y = DP[1, L == 1]
 
-    explain_variance = s/np.sum(s)
-    plt.plot(np.cumsum(explain_variance))
-    plt.xlabel('Number of Principal Components')
-    plt.ylabel('Explained Variance')
-    plt.title('Explained Variance by Principal Components')
-    plt.grid(True)
-    plt.show()
+    # explain_variance = s/np.sum(s)
+    # plt.plot(np.cumsum(explain_variance))
+    # plt.xlabel('Number of Principal Components')
+    # plt.ylabel('Explained Variance')
+    # plt.title('Explained Variance by Principal Components')
+    # plt.grid(True)
+    # plt.show()
 
 
     # plt.scatter(D1y, D1x, alpha=0.4,label='male')
@@ -56,9 +56,10 @@ def PCA(D, L, m):
 
 def LDA(D, L, m):
     N = D.shape[1]
+    numFeature = D.shape[0]
     mu = mcol(D.mean(1))
-    SWc = np.zeros((m, m))
-    SB = np.zeros((m, m))
+    SWc = np.zeros((numFeature, numFeature))
+    SB = np.zeros((numFeature, numFeature))
     for i in range(2):
         Dc = D[:, L == i]
         nc = Dc.shape[1]  # 样本数量
@@ -74,9 +75,18 @@ def LDA(D, L, m):
     SB /= N
     s, U = scipy.linalg.eigh(SB, SW)
     # print(s)
-    W = U[:, ::-1][:, 0:1]  # biggest eigenvector 2分类。can only reduced to 1D
+    W = U[:, ::-1][:, 0:m]  # biggest eigenvector 2分类。can only reduced to 1D
     Dp = np.dot(W.T, D)
     print(Dp.shape)
+
+    D1x = Dp[0, L == 0]
+    D2x = Dp[0, L == 1]
+
+    plt.hist(Dp[0, L == 0], bins=30, density=True, alpha=0.4, label='male')
+    plt.hist(Dp[0, L == 1], bins=30, density=True, alpha=0.4, label='female')
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
     return Dp
 
 
@@ -134,7 +144,7 @@ def TiedMVG(DTR, LTR, DTE, method="MVG"):
 ## K: int
 ## D: 12*2400
 ## L : array([1,0,0,0...]) 2400
-def KFold(modelName, K, D, L, th, hyperPar):
+def KFold(modelName, K, D, L,  piTilde,hyperPar):
     ## D0: 12 * 720
     D0 = D[:, L == 0]
     L0 = L[L == 0]
@@ -175,33 +185,39 @@ def KFold(modelName, K, D, L, th, hyperPar):
         DVAL = np.concatenate((D0VAL, D1VAL), axis=1)
         LVAL = np.concatenate((L0VAL, L1VAL))
         ## paralist = {acc,[parameter]}
+        piT = D0.shape[1] / D1.shape[1]
 
         if modelName == "MVG":
-            model = MVG.MVG(DTR, LTR, DVAL, LVAL, th)
+            model = MVG.MVG(DTR, LTR, DVAL, LVAL)
             model.train()
-            llr = model.score()
-            model.estimate(llr)
+            score.append(model.score())
+            label.append(LVAL)
+            ##model.estimate(llr)
+            minDCF = model.minDcf(score, label,piTilde)
+            # Cfn = 1
+            # Cfp = ((piT * Cfn) / 0.1 - (piT * Cfn)) / (1 - piT)
+            # minDCF = model.minDcfPi(score, label, Cfn,Cfp,piT)
+
 
 
         if modelName == "LR":
-            model = LogisticRegression.LR(DTR, LTR, DVAL, LVAL, th, hyperPar)
+            model = LogisticRegression.LR(DTR, LTR, DVAL, LVAL, hyperPar)
             model.train()
-            model.estimate()
+           ## model.estimate()
             score.append(model.score())
             label.append(LVAL)
-
+            Cfn = 1
+            Cfp = ((piT * Cfn) / 0.99 - (piT) * Cfn) / (1 - piT)
+            minDCF = model.minDcf(score, label, piT, 1, Cfp)
         # a, e = model.computeAccuracy()
         # if a > bestAcc:
         #     bestPar = model.parameter
         #     bestAcc = a
     # score = np.concatenate([arr for arr in score])
     # label = np.concatenate([arr for arr in label])
-    piT = D0.shape[1] / D1.shape[1]
+
     #print("piT is {}".format(piT))
-    Cfn = 1
-    # piEff = 0.5
-    Cfp = ((piT * Cfn)/ 0.99 - (piT) * Cfn ) / (1 - piT)
-    minDCF = model.minDcf(score, label,piT,1,Cfp)
+
     return model, minDCF
 
 
@@ -264,7 +280,8 @@ def KFoldHyper(hyperParList, K, D, L):
     bestminDCF = 1
     bestHyper=0
     for i in hyperParList[0]["lam"]:
-        model,minDCF = KFold("LR", K, D, L, 1, i)
+        #model,minDCF = KFold("LR", K, D, L, 1, i)
+        # model, minDCF = KFold("MVG", K, D, L, 1, i)
         #print(minDCF)
         print("lambda = {}:  minDCF:{} ".format(i,minDCF))
         if minDCF < bestminDCF:
@@ -287,9 +304,11 @@ def main():
     # D [ x0, x1, x2, x3, ...]  xi是列向量，每行都是一个feature
     D, L = load('./data/Train.txt')
     ## plot_hist(D,L)
-    # mvg = Models.MVG()
+
     ## gaussianize the training data
-    D_after = gaussianize(D)
+    D_gaussian = gaussianize(D)
+    D_Znorm = Z_norm(D)
+    print(D_Znorm.shape)
     # plot_hist(D_after, L)
     # corrlationAnalysis(D)
     D0 = D[:, L == 0]  # 0类的所有Data
@@ -299,20 +318,27 @@ def main():
     # D1.shape: (10, 1109)
     # True: 0 False: 1
 
-    D = PCA(D_after, L, 2)  # Dimensionality reduction  12D -> 10D
-    # print(D.shape)
-    # print(D[0,:])
-    # print(D[1, :])
-    #
-    # plot_hist(D[0,:], L)
-    # plot_hist(D[1, :], L)
-    # plt.scatter(D,L)
-    # plt.xlabel('First Principal Component')
-    # plt.ylabel('Second Principal Component')
-    # plt.title('PCA Scatter Plot')
-    # plt.grid(True)
-    # plt.show()
-    #plot_scatter(D, L)
+    ## D = PCA(D_Znorm, L, 9)  # Dimensionality reduction  12D -> 10D
+    D = LDA(D_Znorm, L, 1)
+    # model,minDCF= KFold("MVG", 5, D, L,0.5,0)
+    # print("MVG : bestminDCF:{}   ".format(minDCF))
+
+    # hyperParList = [{"lam": [10 ** -6, 10 ** -4,10 ** -3]}]
+    # hy,model,minDCF= KFoldHyper(hyperParList, 5, D_after, L)
+    # print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy,  minDCF))
+
+
+
+
+
+
+if __name__ == '__main__':
+    # Hyperparameters
+    # hyperparameters = {"m": 10, "l": 0.001}
+    main()
+
+
+
 
     # D = LDA(D,L,2)
     # plot_hist(D, L)
@@ -340,25 +366,3 @@ def main():
     # print(f'|acc:{acc*100}%, err:{err*100}%|')
     # print("--------------------------")
 
-
-
-    #
-    # hyperParList = [{"lam": [10 ** -6, 10 ** -4,10 ** -3]}]
-    # hy,model,minDCF= KFoldHyper(hyperParList, 5, D_after, L)
-    # print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy,  minDCF))
-
-
-    # bestPar, bestAcc = KFold("MVG",3,D_after, L,1,0)
-    # print("MVG : bestParameter:{} : bestAcc:{} ".format(bestPar, bestAcc))
-
-##?1: accuracy is the value to pick a best model?
-##2: compare average accuracy for each hyperparameter, or max accuracy
-
-
-
-
-
-if __name__ == '__main__':
-    # Hyperparameters
-    # hyperparameters = {"m": 10, "l": 0.001}
-    main()

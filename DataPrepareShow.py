@@ -44,6 +44,13 @@ def gaussianize(D):
     # y: 11 * 1839
     y = np.vstack(ylist)
     return y
+
+
+def Z_norm(D):
+    mean = np.mean(D, axis=1,keepdims=True)
+    std = np.std(D, axis=1, keepdims=True)
+    z_scores = (D - mean) / std
+    return z_scores
 def rank(x):
     ranks = stats.rankdata(x,method='min') # 一定要是min才是均匀分布！ 不是均匀分布没办法转回高斯，对于一个feature 共N个samples，计算每个sample这个feature的值有多少比他小的，（将N个样本的feature按从小到大排序）
     return (ranks+1) / (len(x) + 2)

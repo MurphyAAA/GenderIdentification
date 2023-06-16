@@ -3,7 +3,7 @@ import scipy
 
 
 class LR:
-    def __init__(self, DTR, LTR, DVAL, LVAL, th, hyperPar):
+    def __init__(self, DTR, LTR, DVAL, LVAL,  hyperPar):
         self.w = []
         self.b = []
         self.parameter = []
@@ -12,7 +12,7 @@ class LR:
         self.LTR = LTR
         self.DVAL = DVAL
         self.LVAL = LVAL
-        self.th = th
+
         self.lam = hyperPar
 
     def mrow(self, v):
@@ -97,7 +97,7 @@ class LR:
 
 
             #res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
-            res[idx] = 0.99 * (1 - TPR[idx]) + 0.01 * FPR[idx]
+            res[idx] = 0.5 * (1 - TPR[idx]) + 0.5 * FPR[idx]
             sysRisk = min(piT * Cfn, (1 - piT) * Cfp)
             res[idx] = res[idx] / 0.01  # 除 risk of an optimal system
 
