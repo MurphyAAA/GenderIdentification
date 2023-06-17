@@ -55,17 +55,18 @@ class LR:
     def score(self):
         s = np.dot(self.mrow(self.w), self.DVAL) + self.b
         s = s.reshape(s.size, )
+        # print("s is : {}".format(s))
         return s
 
     ##get score and compare with threshold
     ## output predictList np.array(1,0,0,1...)
-    def estimate(self):
-        s = self.score()
-        for i in s:
-            if i > 0:
-                self.predictList.append(1)
-            else:
-                self.predictList.append(0)
+    # def estimate(self):
+    #     s = self.score()
+    #     for i in s:
+    #         if i > 0:
+    #             self.predictList.append(1)
+    #         else:
+    #             self.predictList.append(0)
 
     # def evaluation(self, DTE):
     #     return
@@ -73,11 +74,11 @@ class LR:
     # def validation(self,DTE,LTE):
     #     ## confusionmatrix
     #     return
-    def minDcf(self, score, label, piT, Cfn, Cfp):
+    def minDcf(self, score, label,piTilde):
         label = np.concatenate(label).flatten()
         scoreArray = np.concatenate([arr for arr in score])
         scoreArray.sort()
-        print(scoreArray)
+
         score = np.concatenate(score).flatten()
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)
@@ -97,33 +98,29 @@ class LR:
 
 
             #res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
-            res[idx] = 0.5 * (1 - TPR[idx]) + 0.5 * FPR[idx]
-            sysRisk = min(piT * Cfn, (1 - piT) * Cfp)
-            res[idx] = res[idx] / 0.01  # 除 risk of an optimal system
+            res[idx] = piTilde * (1 - TPR[idx]) + (1-piTilde) * FPR[idx]
+            sysRisk = min(piTilde, 1 - piTilde)
+            res[idx] = res[idx] /sysRisk # 除 risk of an optimal system
 
             if res[idx] < minDCF:
                 minT = t
                 minDCF = res[idx]
 
-        print(minDCF)
-        print(minT)
+        # print(minDCF)
+        # print(minT)
         return res.min()
-    def computeAccuracy(self):
-        res = []
-        for i, pre in enumerate(self.predictList):
-            if (pre == self.LVAL[i]):
-                res.append(True)  # 预测正确
-            else:
-                res.append(False)
-        corr = res.count(True)
-        wrong = res.count(False)
-        # print(f'\ncorrect number:{corr}\nwrong number:{wrong}\ntotal:{len(res)}')
-        acc = corr / len(res)
-        err = wrong / len(res)
-        return acc, err
-
-    def main(self):
-        print("it will run!")
-
-    if __name__ == "__main__":
-        main()
+   #  def computeAccuracy(self):
+   #      res = []
+   #      for i, pre in enumerate(self.predictList):
+   #          if (pre == self.LVAL[i]):
+   #              res.append(True)  # 预测正确
+   #          else:
+   #              res.append(False)
+   #      corr = res.count(True)
+   #      wrong = res.count(False)
+   #      # print(f'\ncorrect number:{corr}\nwrong number:{wrong}\ntotal:{len(res)}')
+   #      acc = corr / len(res)
+   #      err = wrong / len(res)
+   #      return acc, err
+   #
+   #

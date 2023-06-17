@@ -4,7 +4,7 @@
 # Introduction
 
 This project is aiming to develop a classifier to distinguish the gender from 12-dimensional features.
-Training set has xxx samples, XXX of them are male, the rest XXX are female.
+Training set has 2400 samples, 720 of them are male, the rest 1680 are female.
 Expect woking point provided ($\pi$ = 0.5
 C<sub>fn</sub>=1 C<sub>fp</sub>=1 ) , another woking point are also into considered($\pi$ = 0,1 C<sub>fn</sub>=1 C<sub>fp</sub>=1)
 
@@ -61,38 +61,52 @@ We will assess the actual DCF( actual C<sub>prim</sub>) and score calibration on
 ## Gaussian classifier
 
 ### MVG classifier - minDCF(K-Fold) 
-| PCA | minDCF( $\widetilde{\pi}$ = 0.5) | minDCF( $\widetilde{\pi}$ = 0.1) | min C<sub>prim</sub> |
-|:---:|:--------------------------------:|:---------------------------------|:---------------------|
-|  -  |              0.144               | 0.364                            | 0.250                |
-| 11  |            **0.136**             | **0.349**                        | **0.243**            |
-| 10  |              0 189               | 0.422                            | 0.306                |
-|  8  |              0.261               | 0.513                            | 0.387                |
-|  6  |              0.282               | 0.588                            | 0.435                |
+| PCA | minDCF( $\widetilde{\pi}$ = 0.5) | 
+|:---:|:--------------------------------:|
+|  -  |              0.144               | 
+| 11  |            **0.136**             |
+| 10  |              0 189               | 
+|  8  |              0.261               | 
+|  6  |              0.282               | 
 
 11 dimension looks have the best performance among them
 
 ### Tied MVG classifier - minDCF(K-Fold) 
-| PCA | minDCF( $\widetilde{\pi}$ = 0.5) | minDCF( $\widetilde{\pi}$ = 0.1) | min C<sub>prim</sub> |
-|:---:|:--------------------------------:|:---------------------------------|:---------------------|
-|  -  |            **0.127**             | **0.360**                        | **0.244**            |
-| 11  |              0.129               | 0.361                            | 0.245                |
-| 10  |              0 187               | 0.420                            | 0.304                |
-|  8  |              0.257               | 0.532                            | 0.395                |
-|  6  |              0.278               | 0.607                            | 0.443                |
+| PCA | minDCF( $\widetilde{\pi}$ = 0.5) | 
+|:---:|:--------------------------------:|
+|  -  |            **0.127**             |
+| 11  |              0.129               | 
+| 10  |              0 187               | 
+|  8  |              0.257               | 
+|  6  |              0.278               | 
 
 
 ### Naive MVG classifier - minDCF(K-Fold) 
-| PCA | minDCF( $\widetilde{\pi}$ = 0.5) | minDCF( $\widetilde{\pi}$ = 0.1) | min C<sub>prim</sub> |
-|:---:|:--------------------------------:|:---------------------------------|:---------------------|
-|  -  |              0.456               | 0.768                            | 0.612                |
-| 11  |            **0.136**             | **0.358**                        | **0.247**            |
-| 10  |              0.184               | 0.421                            | 0.02                 |
-|  8  |              0.257               | 0.526                            | 0.391                |
-|  6  |              0.277               | 0.607                            | 0.442                |
+| PCA | minDCF( $\widetilde{\pi}$ = 0.5) |
+|:---:|:--------------------------------:|
+|  -  |              0.456               |
+| 11  |            **0.136**             | 
+| 10  |              0.184               | 
+|  8  |              0.257               |
+|  6  |              0.277               | 
+
+
+
 The Naive MVG shows the similar answer with MVG but this method reduce computational complexity
 
-que
 ## Logistic Regression classifier
+
+### Logic Regression classifier - minDCF(K-Fold) 
+| lambda | minDCF( $\widetilde{\pi}$ = 0.5) |
+|:------:|:--------------------------------:|
+| 1e-06  |              0.118               |
+| 1e-05  |              0.118               | 
+| 0.0001 |              0.117               | 
+| 0.001  |              0.124               |
+|  0.01  |              0.145               | 
+|  0.1   |              0.200               |
+|   1    |              0.337               | 
+|   10   |              0.460               | 
 ## Support Vector Machine
 ## Gaussian Mixture Models
 

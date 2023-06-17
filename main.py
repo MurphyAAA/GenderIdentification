@@ -8,6 +8,7 @@ from DataPrepareShow import *
 # sys.path.append('GenderIdentification/Models/')
 from Models import MVG
 from Models import LogisticRegression
+from Models import SVM
 
 
 def PCA(D, L, m):
@@ -77,7 +78,7 @@ def LDA(D, L, m):
     # print(s)
     W = U[:, ::-1][:, 0:m]  # biggest eigenvector 2分类。can only reduced to 1D
     Dp = np.dot(W.T, D)
-    print(Dp.shape)
+
 
     D1x = Dp[0, L == 0]
     D2x = Dp[0, L == 1]
@@ -89,53 +90,53 @@ def LDA(D, L, m):
     plt.show()
     return Dp
 
+#
+# def logpdf_GAU_ND(x, mu, C):  # 概率密度、likelihood，x是未去中心化的原数据
+#     M = x.shape[0]
+#     a = M * np.log(2 * np.pi)
+#     _, b = np.linalg.slogdet(C)  # log|C| 矩阵C的绝对值的log  返回值第一个是符号，第二个是log|C|
+#     xc = (x - mu)
+#     # print(mu.shape)
+#     # xc应该每行循环列数次
+#     c = np.dot(xc.T, np.linalg.inv(C))  # np.linalg.inv求矩阵的逆
+#
+#     c = np.dot(c, xc)
+#
+#     c = np.diagonal(c)  # 点乘完了取对角线就ok
+#     return (-1.0 / 2.0) * (a + b + c)  # 密度函数的log
 
-def logpdf_GAU_ND(x, mu, C):  # 概率密度、likelihood，x是未去中心化的原数据
-    M = x.shape[0]
-    a = M * np.log(2 * np.pi)
-    _, b = np.linalg.slogdet(C)  # log|C| 矩阵C的绝对值的log  返回值第一个是符号，第二个是log|C|
-    xc = (x - mu)
-    # print(mu.shape)
-    # xc应该每行循环列数次
-    c = np.dot(xc.T, np.linalg.inv(C))  # np.linalg.inv求矩阵的逆
 
-    c = np.dot(c, xc)
-
-    c = np.diagonal(c)  # 点乘完了取对角线就ok
-    return (-1.0 / 2.0) * (a + b + c)  # 密度函数的log
-
-
-def TiedMVG(DTR, LTR, DTE, method="MVG"):
-    DTR0 = DTR[:, LTR == 0]  # 0类的所有Data
-    DTR1 = DTR[:, LTR == 1]  # 1类的所有Data
-    mu0 = mcol(DTR0.mean(1))
-    mu1 = mcol(DTR1.mean(1))
-    # 去中心化
-    DTRc0 = DTR0 - mu0
-    DTRc1 = DTR1 - mu1
-    # 协方差
-
-    # DTR.shape:   (10,1600)
-    # DTRc0.shape: (10, 491)
-    # DTRc1.shape: (10, 1109)
-    C = (np.dot(DTRc0, DTRc0.T) + np.dot(DTRc1, DTRc1.T)) / DTR.shape[1]
-    if method == "Bayes":
-        identity = np.identity(DTR.shape[0])
-        C = C * identity
-
-    # print(f'DTR.shape:{(np.dot(DTRc0, DTRc0.T)+np.dot(DTRc1, DTRc1.T)).shape}')
-    # log-likelihood
-    tlogll0 = logpdf_GAU_ND(DTE, mu0, C)
-    tlogll1 = logpdf_GAU_ND(DTE, mu1, C)
-    logS = np.vstack((tlogll0, tlogll1))
-    Priori = 1 / 2
-    logSJoint = logS + np.log(Priori)
-    logSMarginal = mrow(scipy.special.logsumexp(logSJoint, axis=0))
-    logSPost = logSJoint - logSMarginal
-    SPost = np.exp(logSPost)
-
-    predict = np.argmax(SPost, axis=0)
-    return predict
+# def TiedMVG(DTR, LTR, DTE, method="MVG"):
+#     DTR0 = DTR[:, LTR == 0]  # 0类的所有Data
+#     DTR1 = DTR[:, LTR == 1]  # 1类的所有Data
+#     mu0 = mcol(DTR0.mean(1))
+#     mu1 = mcol(DTR1.mean(1))
+#     # 去中心化
+#     DTRc0 = DTR0 - mu0
+#     DTRc1 = DTR1 - mu1
+#     # 协方差
+#
+#     # DTR.shape:   (10,1600)
+#     # DTRc0.shape: (10, 491)
+#     # DTRc1.shape: (10, 1109)
+#     C = (np.dot(DTRc0, DTRc0.T) + np.dot(DTRc1, DTRc1.T)) / DTR.shape[1]
+#     if method == "Bayes":
+#         identity = np.identity(DTR.shape[0])
+#         C = C * identity
+#
+#     # print(f'DTR.shape:{(np.dot(DTRc0, DTRc0.T)+np.dot(DTRc1, DTRc1.T)).shape}')
+#     # log-likelihood
+#     tlogll0 = logpdf_GAU_ND(DTE, mu0, C)
+#     tlogll1 = logpdf_GAU_ND(DTE, mu1, C)
+#     logS = np.vstack((tlogll0, tlogll1))
+#     Priori = 1 / 2
+#     logSJoint = logS + np.log(Priori)
+#     logSMarginal = mrow(scipy.special.logsumexp(logSJoint, axis=0))
+#     logSPost = logSJoint - logSMarginal
+#     SPost = np.exp(logSPost)
+#
+#     predict = np.argmax(SPost, axis=0)
+#     return predict
 
 
 ##kfold for hyperparameter
@@ -206,15 +207,20 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
            ## model.estimate()
             score.append(model.score())
             label.append(LVAL)
-            Cfn = 1
-            Cfp = ((piT * Cfn) / 0.99 - (piT) * Cfn) / (1 - piT)
-            minDCF = model.minDcf(score, label, piT, 1, Cfp)
-        # a, e = model.computeAccuracy()
-        # if a > bestAcc:
-        #     bestPar = model.parameter
-        #     bestAcc = a
-    # score = np.concatenate([arr for arr in score])
-    # label = np.concatenate([arr for arr in label])
+            # Cfn = 1
+            # Cfp = ((piT * Cfn) / 0.99 - (piT) * Cfn) / (1 - piT)
+            minDCF = model.minDcf(score, label,piTilde)
+
+        if modelName == "SVM":
+            model = SVM.SVM(DTR, LTR, DVAL, LVAL, 1)
+            wStar = model.train_linear(1)
+            alphaStar = model.train_RBF(1,1,0)
+
+
+            score.append(model.score(wStar,1))
+            #score.append(model.score_rbf(alphaStar,1,1))
+            label.append(LVAL)
+            minDCF = model.minDcf(score, label,0.5)
 
     #print("piT is {}".format(piT))
 
@@ -276,19 +282,33 @@ def plot_scatter(D, L):
 
 
 
-def KFoldHyper(hyperParList, K, D, L):
+def KFoldHyper(hyperParList, K, D, L, piTilde):
     bestminDCF = 1
     bestHyper=0
+    x = hyperParList[0]["lam"]
+    y = []
     for i in hyperParList[0]["lam"]:
-        #model,minDCF = KFold("LR", K, D, L, 1, i)
-        # model, minDCF = KFold("MVG", K, D, L, 1, i)
+        model,minDCF = KFold("LR", K, D, L, piTilde, i)
+        y.append(minDCF)
         #print(minDCF)
-        print("lambda = {}:  minDCF:{} ".format(i,minDCF))
+        #print("lambda = {}:  minDCF:{} ".format(i,minDCF))
+
         if minDCF < bestminDCF:
             bestminDCF = minDCF
             bestHyper = i
-
-    return bestHyper,model,minDCF
+    ## with norm
+    ## x = [1e-06, 1e-05, 0.0001, 0.001, 0.01, 0.1, 1, 10]
+    ## y = [0.11785714285714281, 0.11785714285714281, 0.11666666666666663, 0.12400793650793654, 0.14464285714285713, 0.2003968253968254, 0.33670634920634923, 0.4597222222222222]
+    # print(x)
+    # print(y)
+    plt.grid(True)
+    plt.xscale('log')
+    plt.plot(x, y)
+    plt.xlabel('lambda')
+    plt.ylabel('minDCF')
+    # plt.title('Line Chart')
+    plt.show()
+    return bestHyper,model,bestminDCF
 def ConfusionMatrix(predictList, L):
     CM = np.zeros((2,2)) # 两个类
     # real class:    0   1
@@ -308,7 +328,7 @@ def main():
     ## gaussianize the training data
     D_gaussian = gaussianize(D)
     D_Znorm = Z_norm(D)
-    print(D_Znorm.shape)
+
     # plot_hist(D_after, L)
     # corrlationAnalysis(D)
     D0 = D[:, L == 0]  # 0类的所有Data
@@ -318,17 +338,17 @@ def main():
     # D1.shape: (10, 1109)
     # True: 0 False: 1
 
-    ## D = PCA(D_Znorm, L, 9)  # Dimensionality reduction  12D -> 10D
-    D = LDA(D_Znorm, L, 1)
+    D = PCA(D_Znorm, L, 11)  # Dimensionality reduction  12D -> 10D
+    # D = LDA(D_Znorm, L, 1)
     # model,minDCF= KFold("MVG", 5, D, L,0.5,0)
     # print("MVG : bestminDCF:{}   ".format(minDCF))
 
-    # hyperParList = [{"lam": [10 ** -6, 10 ** -4,10 ** -3]}]
-    # hy,model,minDCF= KFoldHyper(hyperParList, 5, D_after, L)
+    # hyperParList = [{"lam": [10 ** -6, 10 ** -5,10 ** -4,10 ** -3,10 ** -2,10 ** -1,1,10]}]
+    # hy,model,minDCF= KFoldHyper(hyperParList, 5, D, L,0.5)
     # print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy,  minDCF))
 
 
-
+    model,minDCF= KFold("SVM", 5, D, L,0.5,0)
 
 
 
