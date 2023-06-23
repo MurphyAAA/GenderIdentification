@@ -82,7 +82,7 @@ def LDA(D, L, m):
 
     D1x = Dp[0, L == 0]
     D2x = Dp[0, L == 1]
-
+    print(Dp.shape)
     plt.hist(Dp[0, L == 0], bins=30, density=True, alpha=0.4, label='male')
     plt.hist(Dp[0, L == 1], bins=30, density=True, alpha=0.4, label='female')
     plt.legend()
@@ -297,17 +297,9 @@ def KFoldHyper(hyperParList, K, D, L, piTilde):
             bestminDCF = minDCF
             bestHyper = i
     ## with norm
-    ## x = [1e-06, 1e-05, 0.0001, 0.001, 0.01, 0.1, 1, 10]
-    ## y = [0.11785714285714281, 0.11785714285714281, 0.11666666666666663, 0.12400793650793654, 0.14464285714285713, 0.2003968253968254, 0.33670634920634923, 0.4597222222222222]
+    ## x = [ 1e-05, 0.0001, 0.001, 0.01, 0.1, 1, 10]
     # print(x)
-    # print(y)
-    plt.grid(True)
-    plt.xscale('log')
-    plt.plot(x, y)
-    plt.xlabel('lambda')
-    plt.ylabel('minDCF')
-    # plt.title('Line Chart')
-    plt.show()
+    print(y)
     return bestHyper,model,bestminDCF
 def ConfusionMatrix(predictList, L):
     CM = np.zeros((2,2)) # 两个类
@@ -331,24 +323,39 @@ def main():
 
     # plot_hist(D_after, L)
     # corrlationAnalysis(D)
-    D0 = D[:, L == 0]  # 0类的所有Data
-    D1 = D[:, L == 1]  # 1类的所有Data
+    #D0 = D[:, L == 0]  # 0类的所有Data
+    #D1 = D[:, L == 1]  # 1类的所有Data
     # D.shape:   (10,1600)
     # D0.shape: (10, 491)
     # D1.shape: (10, 1109)
     # True: 0 False: 1
 
-    D = PCA(D_Znorm, L, 11)  # Dimensionality reduction  12D -> 10D
-    # D = LDA(D_Znorm, L, 1)
+    # D = PCA(D, L, 10)  # Dimensionality reduction  12D -> 10D
+    D = LDA(D_Znorm, L, 4)
     # model,minDCF= KFold("MVG", 5, D, L,0.5,0)
     # print("MVG : bestminDCF:{}   ".format(minDCF))
 
-    # hyperParList = [{"lam": [10 ** -6, 10 ** -5,10 ** -4,10 ** -3,10 ** -2,10 ** -1,1,10]}]
-    # hy,model,minDCF= KFoldHyper(hyperParList, 5, D, L,0.5)
+    hyperParList = [{"lam": [ 10 ** -5,10 ** -4,10 ** -3,10 ** -2,10 ** -1,1,10]}]
+    hy,model,minDCF= KFoldHyper(hyperParList, 5, D, L,0.5)
+    D= [0.11865079365079362, 0.11865079365079362, 0.11865079365079362, 0.11785714285714281, 0.11765873015873013, 0.13293650793650796, 0.2180555555555555]
+    D_11 = [0.12202380952380948, 0.12202380952380948, 0.12202380952380948, 0.1226190476190476, 0.12480158730158727, 0.1396825396825397, 0.21964285714285714]
+    D_10 = [0.16388888888888886, 0.16388888888888886, 0.16388888888888886, 0.16626984126984123, 0.16686507936507933, 0.17242063492063497, 0.22876984126984126]
+    D_Znorm=[ 0.11865079365079362, 0.11865079365079365, 0.11845238095238092, 0.1373015873015873, 0.19999999999999996, 0.33670634920634923, 0.46210317460317457]
     # print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy,  minDCF))
+    # plt.grid(True)
+    # plt.xscale('log')
+    line1, = plt.plot(hyperParList[0]["lam"], D,label='Log-Reg(no PCA)')
+    line2, = plt.plot(hyperParList[0]["lam"], D_11, label='Log-Reg(PCA = 11)')
+    line3, = plt.plot(hyperParList[0]["lam"], D_10, label='Log-Reg(PCA = 10)')
 
+    # line2, = plt.plot(hyperParList[0]["lam"], D_Znorm,label='Log-Reg(z-norm)')
+    #
+    # plt.legend(handles=[line1, line2, line3])
+    # plt.xlabel('lambda')
+    # plt.ylabel('minDCF')
+    # plt.show()
 
-    model,minDCF= KFold("SVM", 5, D, L,0.5,0)
+    # model,minDCF= KFold("SVM", 5, D, L,0.5,0)
 
 
 

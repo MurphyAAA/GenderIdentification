@@ -5,13 +5,12 @@
 
 This project is aiming to develop a classifier to distinguish the gender from 12-dimensional features.
 Training set has 2400 samples, 720 of them are male, the rest 1680 are female.
-Expect woking point provided ($\pi$ = 0.5
-C<sub>fn</sub>=1 C<sub>fp</sub>=1 ) , another woking point are also into considered($\pi$ = 0,1 C<sub>fn</sub>=1 C<sub>fp</sub>=1)
+According to the requirement, only one working point applied ($\pi$ = 0.5
+C<sub>fn</sub>=1 C<sub>fp</sub>=1 ) [ 1 female   0 male]
 
 # Feature
 
-label = 1 female
-label = 0 male
+
 ### Histogram and 2D scatter plots of dataset features - principal components
 
 
@@ -21,16 +20,12 @@ label = 0 male
 | ![](images/gau_1st.jpg) |   ![](images/gau_scatter.jpg)   |
 |                         |    ![](images/gau_2ndPC.jpg)    |
 
-### Histogram of dataset features - LDA direction
 
 
- - LDA shows a linear classifier may be able discriminate the classes 
 ### Histogram of dataset features - LDA direction
 ![](images/LDA.jpg)
-
-
  - Gaussian may not sufficient for dividing the gender according to the observation from its first principal component
- - LDA shows that a linear classifier may be able to discriminate the classes to some degree, but, regarding the features we observed in scatter plot, no linear models (eg,GMM ) will have better performance 
+ - LDA shows that a linear classifier may be able to discriminate the classes. But, regarding the features we observed in scatter plot, no linear models (eg,GMM ) maybe will have better performance 
 
 ### Pearson correlation coefficient for the dataset features
 
@@ -52,13 +47,11 @@ with 10 dimension we could explain about 99% of the dataset variance. 97% with 8
 
 # Building a classifier for the task
 
-We adopt K- fold protol with K = 5. We measure performance in terms of minimum costs.
-Since two working points are considered, we compute the minDCF of both working points and their average (C<sub>prim</sub>)
-
-
-We will assess the actual DCF( actual C<sub>prim</sub>) and score calibration once we have selected the top-performing model
+We adopt K- fold protol with K = 5. We measure performance in terms of minimum costs( minDCF).
+Then, We will assess the actual DCF( actual C<sub>prim</sub>) and score calibration once we have selected the top-performing model
 
 ## Gaussian classifier
+We test all three approaches(MVG, Naive Bayes model, Tied) also with the effect of PCA
 
 ### MVG classifier - minDCF(K-Fold) 
 | PCA | minDCF( $\widetilde{\pi}$ = 0.5) | 
@@ -69,7 +62,7 @@ We will assess the actual DCF( actual C<sub>prim</sub>) and score calibration on
 |  8  |              0.261               | 
 |  6  |              0.282               | 
 
-11 dimension looks have the best performance among them
+When we reduce dimension into 11, the model looks have the best performance among them
 
 ### Tied MVG classifier - minDCF(K-Fold) 
 | PCA | minDCF( $\widetilde{\pi}$ = 0.5) | 
@@ -79,6 +72,8 @@ We will assess the actual DCF( actual C<sub>prim</sub>) and score calibration on
 | 10  |              0 187               | 
 |  8  |              0.257               | 
 |  6  |              0.278               | 
+
+It shows the performance is better when dimension is in original size and when reduce 1, it increases a little but is still in tolerance. However, when dimension comes to 10, the cost increase significantly.
 
 
 ### Naive MVG classifier - minDCF(K-Fold) 
@@ -92,25 +87,38 @@ We will assess the actual DCF( actual C<sub>prim</sub>) and score calibration on
 
 
 
-The Naive MVG shows the similar answer with MVG but this method reduce computational complexity
+The Naive MVG shows the similar answer with MVG but this method reduce computational complexity.
 
 ## Logistic Regression classifier
 
-### Logic Regression classifier - minDCF(K-Fold) 
-| lambda | minDCF( $\widetilde{\pi}$ = 0.5) |
-|:------:|:--------------------------------:|
-| 1e-06  |              0.118               |
-| 1e-05  |              0.118               | 
-| 0.0001 |              0.117               | 
-| 0.001  |              0.124               |
-|  0.01  |              0.145               | 
-|  0.1   |              0.200               |
-|   1    |              0.337               | 
-|   10   |              0.460               | 
-## Support Vector Machine
-## Gaussian Mixture Models
+We now consider Logistic Regression models. 
+We start analyzing the linear classifier without PCA
 
+### Logic Regression classifier - minDCF(K-Fold) 
+
+![](images/Linear_LR.jpg)
+It is surprise that the performance is not quite worse since minDCF can reach 0.118, it is better than MVG model
+
+Then we could apply PCA to see whether it will improve our model .
+Because the z-norm doesn't favor our model's performance, we will apply PCA on original data 
+
+It can be seen that the result show worse result when we reduce the dimension, when it jumps to 10 , the cost increase dramatically.
+![](images/LR_Compare.jpg)
+Up to know, the best model is linear Regression with original PCA.
+
+## Support Vector Machine
+We move to SVM model, we try linear SVM firstly
+
+Then we try the kernel SVM, we start from polynomial kernels. Now we only consider original dimension (no PCA)
+
+For RBF kernel
+
+Because in some case, better performance can be seen when dimension reduce into 11, so we try to apply our xxx model with PCA data
+## Gaussian Mixture Models
+Finally, we explore another approaches, which is GMM classifiers.
 ## Calibration and fusion
+We use the DET plot to compare the best models that we collect from now.
+It can be seen that....
 # Experimental Evaluation
 now we analyze a model performance on the evaluation set. We start from the selected model and then different choices will be analyzed as well
 
