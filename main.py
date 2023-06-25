@@ -186,7 +186,7 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
         DVAL = np.concatenate((D0VAL, D1VAL), axis=1)
         LVAL = np.concatenate((L0VAL, L1VAL))
         ## paralist = {acc,[parameter]}
-        piT = D0.shape[1] / D1.shape[1]
+        # piT = D0.shape[1] / D1.shape[1]
 
         if modelName == "MVG":
             model = MVG.MVG(DTR, LTR, DVAL, LVAL)
@@ -194,14 +194,14 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
             score.append(model.score())
             label.append(LVAL)
             ##model.estimate(llr)
-            minDCF = model.minDcf(score, label,piTilde)
+            # minDCF = model.minDcf(score, label,piTilde)
             # Cfn = 1
             # Cfp = ((piT * Cfn) / 0.1 - (piT * Cfn)) / (1 - piT)
             # minDCF = model.minDcfPi(score, label, Cfn,Cfp,piT)
 
 
 
-        if modelName == "LR":
+        elif modelName == "LR":
             model = LogisticRegression.LR(DTR, LTR, DVAL, LVAL, hyperPar)
             model.train()
            ## model.estimate()
@@ -209,9 +209,9 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
             label.append(LVAL)
             # Cfn = 1
             # Cfp = ((piT * Cfn) / 0.99 - (piT) * Cfn) / (1 - piT)
-            minDCF = model.minDcf(score, label,piTilde)
+            # minDCF = model.minDcf(score, label,piTilde)
 
-        if modelName == "SVM":
+        elif modelName == "SVM":
             model = SVM.SVM(DTR, LTR, DVAL, LVAL, 1)
             wStar = model.train_linear(1)
             alphaStar = model.train_RBF(1,1,0)
@@ -220,10 +220,11 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
             score.append(model.score(wStar,1))
             #score.append(model.score_rbf(alphaStar,1,1))
             label.append(LVAL)
-            minDCF = model.minDcf(score, label,0.5)
+            # minDCF = model.minDcf(score, label,0.5)
 
     #print("piT is {}".format(piT))
-
+    # print(f'score[0]={score[0].mean()}')
+    minDCF = model.minDcf(score, label, piTilde)
     return model, minDCF
 
 
@@ -291,7 +292,7 @@ def KFoldHyper(hyperParList, K, D, L, piTilde):
         model,minDCF = KFold("LR", K, D, L, piTilde, i)
         y.append(minDCF)
         #print(minDCF)
-        #print("lambda = {}:  minDCF:{} ".format(i,minDCF))
+        # print("lambda = {}:  minDCF:{} ".format(i,minDCF))
 
         if minDCF < bestminDCF:
             bestminDCF = minDCF
@@ -343,12 +344,13 @@ def main():
     # model,minDCF= KFold("MVG", 5, D, L,0.5,0)
     # print("MVG : bestminDCF:{}   ".format(minDCF))
 
-    # hyperParList = [{"lam": [10 ** -6, 10 ** -5,10 ** -4,10 ** -3,10 ** -2,10 ** -1,1,10]}]
-    # hy,model,minDCF= KFoldHyper(hyperParList, 5, D, L,0.5)
-    # print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy,  minDCF))
+    hyperParList = [{"lam": [10 ** -6, 10 ** -5,10 ** -4,10 ** -3,10 ** -2,10 ** -1,1,10]}]
+    hy,model,minDCF= KFoldHyper(hyperParList, 5, D, L,0.5)
+    print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy,  minDCF))
 
 
-    model,minDCF= KFold("SVM", 5, D, L,0.5,0)
+    # model,minDCF= KFold("MVG", 5, D, L,0.5,0)
+    # model,minDCF= KFold("LR", 5, D, L,0.5,hyperParList)
 
 
 

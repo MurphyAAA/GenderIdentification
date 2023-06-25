@@ -75,11 +75,13 @@ class LR:
     #     ## confusionmatrix
     #     return
     def minDcf(self, score, label,piTilde):
-        label = np.concatenate(label).flatten()
-        scoreArray = np.concatenate([arr for arr in score])
+        score = np.array(score).flatten()
+        # print(f'score={score.mean()}')
+        # print(f'score={len(score)}')
+        label = np.array(label).flatten()
+        scoreArray = score
         scoreArray.sort()
 
-        score = np.concatenate(score).flatten()
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)
         TPR = np.zeros(scoreArray.size)
@@ -89,6 +91,7 @@ class LR:
         #{res[idx] : t}
         for idx, t in enumerate(scoreArray):
             Pred = np.int32(score > t)  # 强制类型转换为int32,True 变成1，False 变成0
+
             Conf = np.zeros((2, 2))
             for i in range(2):
                 for j in range(2):
@@ -102,10 +105,10 @@ class LR:
             sysRisk = min(piTilde, 1 - piTilde)
             res[idx] = res[idx] /sysRisk # 除 risk of an optimal system
 
-            if res[idx] < minDCF:
-                minT = t
-                minDCF = res[idx]
-
+            # if res[idx] < minDCF:
+            #     minT = t
+            #     minDCF = res[idx]
+        print(res)
         # print(minDCF)
         # print(minT)
         return res.min()
