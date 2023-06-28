@@ -118,11 +118,10 @@ class MVG:
 
     # use effective_prior
     def minDcf(self, score, label, epiT):
-        label = np.concatenate(label).flatten()
-        scoreArray = np.concatenate([arr for arr in score])
+        label = np.array(label).flatten()
+        score = np.array(score).flatten()
+        scoreArray = score
         scoreArray.sort()
-
-        score = np.concatenate(score).flatten()
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)
         TPR = np.zeros(scoreArray.size)

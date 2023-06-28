@@ -82,12 +82,12 @@ def LDA(D, L, m):
 
     D1x = Dp[0, L == 0]
     D2x = Dp[0, L == 1]
-    print(Dp.shape)
-    plt.hist(Dp[0, L == 0], bins=30, density=True, alpha=0.4, label='male')
-    plt.hist(Dp[0, L == 1], bins=30, density=True, alpha=0.4, label='female')
-    plt.legend()
-    plt.tight_layout()
-    plt.show()
+    # print(Dp.shape)
+    # plt.hist(Dp[0, L == 0], bins=30, density=True, alpha=0.4, label='male')
+    # plt.hist(Dp[0, L == 1], bins=30, density=True, alpha=0.4, label='female')
+    # plt.legend()
+    # plt.tight_layout()
+    # plt.show()
     return Dp
 
 #
@@ -194,7 +194,7 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
             score.append(model.score())
             label.append(LVAL)
             ##model.estimate(llr)
-            minDCF = model.minDcf(score, label,piTilde)
+
             # Cfn = 1
             # Cfp = ((piT * Cfn) / 0.1 - (piT * Cfn)) / (1 - piT)
             # minDCF = model.minDcfPi(score, label, Cfn,Cfp,piT)
@@ -209,7 +209,7 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
             label.append(LVAL)
             # Cfn = 1
             # Cfp = ((piT * Cfn) / 0.99 - (piT) * Cfn) / (1 - piT)
-            minDCF = model.minDcf(score, label,piTilde)
+
 
         if modelName == "SVM":
             model = SVM.SVM(DTR, LTR, DVAL, LVAL, 1)
@@ -220,10 +220,10 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
             score.append(model.score(wStar,1))
             #score.append(model.score_rbf(alphaStar,1,1))
             label.append(LVAL)
-            minDCF = model.minDcf(score, label,0.5)
+
 
     #print("piT is {}".format(piT))
-
+    minDCF = model.minDcf(score, label, piTilde)
     return model, minDCF
 
 
@@ -291,7 +291,7 @@ def KFoldHyper(hyperParList, K, D, L, piTilde):
         model,minDCF = KFold("LR", K, D, L, piTilde, i)
         y.append(minDCF)
         #print(minDCF)
-        #print("lambda = {}:  minDCF:{} ".format(i,minDCF))
+        print("lambda = {}:  minDCF:{} ".format(i,minDCF))
 
         if minDCF < bestminDCF:
             bestminDCF = minDCF
@@ -299,7 +299,7 @@ def KFoldHyper(hyperParList, K, D, L, piTilde):
     ## with norm
     ## x = [ 1e-05, 0.0001, 0.001, 0.01, 0.1, 1, 10]
     # print(x)
-    print(y)
+    # print(y)
     return bestHyper,model,bestminDCF
 def ConfusionMatrix(predictList, L):
     CM = np.zeros((2,2)) # 两个类
@@ -341,7 +341,7 @@ def main():
     D_11 = [0.12202380952380948, 0.12202380952380948, 0.12202380952380948, 0.1226190476190476, 0.12480158730158727, 0.1396825396825397, 0.21964285714285714]
     D_10 = [0.16388888888888886, 0.16388888888888886, 0.16388888888888886, 0.16626984126984123, 0.16686507936507933, 0.17242063492063497, 0.22876984126984126]
     D_Znorm=[ 0.11865079365079362, 0.11865079365079365, 0.11845238095238092, 0.1373015873015873, 0.19999999999999996, 0.33670634920634923, 0.46210317460317457]
-    # print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy,  minDCF))
+    print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy,  minDCF))
     # plt.grid(True)
     # plt.xscale('log')
     line1, = plt.plot(hyperParList[0]["lam"], D,label='Log-Reg(no PCA)')
