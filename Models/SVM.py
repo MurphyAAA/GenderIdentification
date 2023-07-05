@@ -69,11 +69,10 @@ class SVM:
 
 
     def minDcf(self, score, label, epiT):
-        label = np.concatenate(label).flatten()
-        scoreArray = np.concatenate([arr for arr in score])
+        score = np.array(score).flatten()
+        label = np.array(label).flatten()
+        scoreArray = score.copy()
         scoreArray.sort()
-
-        score = np.concatenate(score).flatten()
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)
         TPR = np.zeros(scoreArray.size)
@@ -111,13 +110,13 @@ class SVM:
     #     def K(D1,D2):
     #        DIST = self.mcol((D1**2).sum(0)) + self.vrow((D2**2).sum(0)) - 2*np.dot(D1.T,D2)
     #        return np.exp(-g * DIST)
-    def train_RBF(self, C, gamma, K=1):  # 非线性 使用 核函数
+    def train_RBF(self, C, gamma, K):  # 非线性 使用 核函数
         # DTREXT = np.vstack([DTR, np.ones((1, DTR.shape[1])) * K])
         Z = np.zeros(self.LTR.shape)
         Z[self.LTR == 1] = 1
         Z[self.LTR == 0] = -1
 
-        # H = np.dot(DTREXT.T, DTREXT)
+        #H = np.dot(DTREXT.T, DTREXT)
         # Dist = np.zeros((self.DTR.shape[1], self.DTR.shape[1]))
         # for i in range(self.DTR.shape[1]):
         #     for j in range(self.DTR.shape[1]):
@@ -129,6 +128,12 @@ class SVM:
         Dist = self.mcol((D1**2).sum(0)) + self.vrow((D2**2).sum(0)) - 2*np.dot(D1.T,D2)
         kernel = np.exp(-gamma * Dist) + K ** 0.5
         H = self.mcol(Z) * self.vrow(Z) * kernel
+
+        def JDual(alpha):
+            Ha = np.dot(H, self.mcol(alpha))
+            aHa = np.dot(self.vrow(alpha), Ha)
+            a1 = alpha.sum()
+            return -0.5 * aHa.ravel() + a1, -Ha.ravel() + np.ones(alpha.size)  # 损失函数，梯度
 
         def JDualv2(alpha):
             los_fun = -0.5 * np.dot(np.dot(alpha.T, H), alpha) + np.dot(alpha.T, np.ones(alpha.size))
@@ -153,8 +158,19 @@ class SVM:
         Dist = self.mcol((self.DVAL ** 2).sum(0)) + self.vrow((self.DTR ** 2).sum(0)) - 2 * np.dot(self.DVAL.T, self.DTR)
         kernel = np.exp(-gamma * Dist) + K ** 0.5
         S = np.matmul(kernel, self.mcol(alphaStar * self.Z)).flatten()
+        # Z = np.zeros(self.LTR.shape)
+        # Z[self.LTR == 1] = 1
+        # Z[self.LTR == 0] = -1
+        # for i in range(self.DVAL.shape[1]):
+        #     xi = self.DVAL[:, i]
+        #     S = 0
+        #     for j in range(self.DTR.shape[1]):
+        #         xj = self.DTR[:, j]
+        #         Dist = np.linalg.norm(xi - xj) ** 2
+        #         kernel = np.exp(-gamma * Dist)
+        #         S += alphaStar[j] * Z[j] * kernel
 
         # pdb.set_trace()
-        # print(S.shape)
+        print(S.shape)
         return S
 

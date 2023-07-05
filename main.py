@@ -19,39 +19,56 @@ def PCA(D, L, m):
     C = np.dot(DC, DC.T)
     C = C / L.size  # 协方差矩阵
     U, s, Vh = np.linalg.svd(C)
-    # print(f'U: {U.shape}')
-
     P = U[:, 0:m]
     DP = np.dot(P.T, D)
+    #draw explain variance graph
+    #draw_explain_variance(s)
 
-    D1x = DP[0, L == 0]
-    D2x = DP[0, L == 1]
+    #draw PCA graph
+    draw_PCA(DP,L,False,False,False)
+    return DP
 
-    D1y = DP[1, L == 0]
-    D2y = DP[1, L == 1]
+def draw_explain_variance(s):
+    explain_variance = (s**2)/(np.sum(s**2))
+    plt.xlabel('Number of Principal Components')
+    plt.ylabel('Explained Variance')
+    plt.title('Explained Variance by Principal Components')
+    x_data = np.arange(1, len(explain_variance) + 1)
+    #adjust the x-axis ticks and show all dimension as x
+    plt.xticks(x_data)
+    plt.plot(x_data, np.cumsum(explain_variance))
+    plt.grid(True)
+    plt.show()
 
-    # explain_variance = s/np.sum(s)
-    # plt.plot(np.cumsum(explain_variance))
-    # plt.xlabel('Number of Principal Components')
-    # plt.ylabel('Explained Variance')
-    # plt.title('Explained Variance by Principal Components')
-    # plt.grid(True)
-    # plt.show()
 
-    # plt.scatter(D1y, D1x, alpha=0.4,label='male')
-    # plt.scatter(D2y, D2x, alpha=0.4, label='female')
-    # plt.hist(DP[0, L == 0], bins=30, density=True, alpha=0.4, label='male')
-    # plt.hist(DP[0, L == 1], bins=30, density=True, alpha=0.4, label='female')
-    # plt.hist(DP[0, L == 0], bins=30, density=True, alpha=0.4, label='male')
-    # plt.hist(DP[0, L == 1], bins=30, density=True, alpha=0.4, label='female')
-    # plt.legend()
-    # plt.tight_layout()
+def draw_PCA(DP,L,hist1 = True, hist2 = True, scatter = True ):
+    D1male = DP[0, L == 0]
+    D1female = DP[0, L == 1]
+    D2male = DP[1, L == 0]
+    D2female = DP[1, L == 1]
+    if hist1:
+        plt.figure(1)
+        plt.hist(D1male, bins=30, density=True, alpha=0.4, label='male')
+        plt.hist(D1female, bins=30, density=True, alpha=0.4, label='female')
+        plt.legend()
+        plt.plot()
+    if hist2:
+        plt.figure(2)
+        plt.hist(D2male, bins=30, density=True, alpha=0.4, label='male')
+        plt.hist(D2female, bins=30, density=True, alpha=0.4, label='female')
+        plt.legend()
+        plt.plot()
+    if scatter:
+        plt.figure(3)
+        plt.scatter(D2male, D1male, alpha=0.4,label='male')
+        plt.scatter(D2female, D1female, alpha=0.4, label='female')
+        plt.tight_layout()
+        plt.plot()
 
-    # plt.show()
+    plt.show()
     # print(f'DP: {DP.shape}')
     # print(f'L: {L.shape}')
 
-    return DP
 
 
 def LDA(D, L, m):
@@ -74,7 +91,6 @@ def LDA(D, L, m):
     SW = SWc / N
     SB /= N
     s, U = scipy.linalg.eigh(SB, SW)
-    # print(s)
     W = U[:, ::-1][:, 0:m]  # biggest eigenvector 2分类。can only reduced to 1D
     Dp = np.dot(W.T, D)
 
@@ -189,17 +205,13 @@ def KFold(modelName, K, D, L, piTilde, hyperPar):
 
         if modelName == "MVG":
             model = MVG.MVG(DTR, LTR, DVAL, LVAL)
-            model.train()
+            model.train(tied = False, bayes = True)
             score.append(model.score())
             label.append(LVAL)
             ##model.estimate(llr)
-
             # Cfn = 1
             # Cfp = ((piT * Cfn) / 0.1 - (piT * Cfn)) / (1 - piT)
             # minDCF = model.minDcfPi(score, label, Cfn,Cfp,piT)
-
-
-
         elif modelName == "LR":
             model = LogisticRegression.LR(DTR, LTR, DVAL, LVAL, hyperPar["lam"])
             model.train()
@@ -207,25 +219,20 @@ def KFold(modelName, K, D, L, piTilde, hyperPar):
             label.append(LVAL)
             # Cfn = 1
             # Cfp = ((piT * Cfn) / 0.99 - (piT) * Cfn) / (1 - piT)
-
             # minDCF = model.minDcf(score, label,piTilde)
-
-
         elif modelName == "SVM":
-            model = SVM.SVM(DTR, LTR, DVAL, LVAL, 1)
-            wStar = model.train_linear(1)
+            model = SVM.SVM(DTR, LTR, DVAL, LVAL, None)
+            #wStar = model.train_linear(1)
+            #hyper C=1 gamma=1 K=0
             alphaStar = model.train_RBF(1, 1, 0)
-            score.append(model.score(wStar, 1))
-            # score.append(model.score_rbf(alphaStar,1,1))
+            #score.append(model.score(wStar, 1))
+            score.append(model.score_rbf(alphaStar,1,0))
             label.append(LVAL)
-
-
         elif modelName == "GMM":
             model = GMM.GMM(DTR, LTR, DVAL, LVAL, hyperPar)
             model.train()
             score.append(model.score())
             label.append(LVAL)
-
     # print("piT is {}".format(piT))
     # print(f'score[0]={score[0].mean()}')
 
@@ -289,9 +296,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
     bestminDCF = 1
     bestHyper = 0
     y = []
-
     w0y = []
-
     if modelName == "LR":
         x = hyperParList["lam"]
         for i in hyperParList["lam"]:
@@ -348,29 +353,33 @@ def main():
     D_gaussian = gaussianize(D)
     D_Znorm = Z_norm(D)
 
-    # plot_hist(D_after, L)
-    # corrlationAnalysis(D)
-    #D0 = D[:, L == 0]  # 0类的所有Data
-    #D1 = D[:, L == 1]  # 1类的所有Data
-    # D.shape:   (10,1600)
-    # D0.shape: (10, 491)
-    # D1.shape: (10, 1109)
-    # True: 0 False: 1
+    #plot heatmap
+    #corrlationAnalysis(D)
 
-
-    D = PCA(D, L, 9)  # Dimensionality reduction  12D -> 10D
+    # Dimensionality reduction
+    left_dim = 9
+    D = PCA(D, L, left_dim)
     # D = LDA(D_Znorm, L, 1)
-    # model,minDCF= KFold("MVG", 5, D, L,0.5,None)
-    # print("MVG : bestminDCF:{}   ".format(minDCF))
-
-    hyperParListLR = {"lam": [10 ** -6, 10 ** -5, 10 ** -4, 10 ** -3, 10 ** -2, 10 ** -1, 1, 10]}
-    # hy,model,minDCF= KFoldHyper("LR", hyperParListLR, 5, D, L,0.5)
-    # print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy["lam"],  minDCF))
 
 
-    hyperParListGMM = {"w0": [1, 2, 4], "w1": [1, 2, 4]}
-    hy, model, minDCF = KFoldHyper("GMM", hyperParListGMM, 5, D, L, 0.5)
-    print("GMM : with hyperparamter w0 ={}, w1={}, bestminDCF:{}  ".format(hy["w0"], hy["w1"], minDCF))
+    #Model choosen list=["MVG","LR","SVM","GMM"]
+    model = "SVM"
+    if model == "MVG":
+        model,minDCF= KFold("MVG", 5, D, L,0.5,None)
+        print("MVG : bestminDCF:{} ".format(minDCF))
+    elif model == "LR":
+        hyperParListLR = {"lam": [10 ** -6, 10 ** -5, 10 ** -4, 10 ** -3, 10 ** -2, 10 ** -1, 1, 10]}
+        hy,model,minDCF= KFoldHyper("LR", hyperParListLR, 5, D, L,0.5)
+        print("Logic regression : with hyper_paramter lambda = {}  bestminDCF:{}   ".format(hy["lam"],  minDCF))
+    elif model == "GMM":
+        hyperParListGMM = {"w0": [1, 2, 4], "w1": [1, 2, 4]}
+        hy, model, minDCF = KFoldHyper("GMM", hyperParListGMM, 5, D, L, 0.5)
+        print("GMM : with hyperparamter w0 ={}, w1={}, bestminDCF:{}  ".format(hy["w0"], hy["w1"], minDCF))
+    elif model == "SVM":
+        model,minDCF= KFold("SVM", 5, D, L,0.5,None)
+        print("SVM : bestminDCF:{} ".format(minDCF))
+    else:
+        print("no corresponding model")
 
 
 if __name__ == '__main__':

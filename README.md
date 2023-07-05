@@ -4,9 +4,9 @@
 # Introduction
 
 This project is aiming to develop a classifier to distinguish the gender from 12-dimensional features.
-Training set has 2400 samples, 720 of them are male, the rest 1680 are female.
+Training set has 2400 samples, 720 of them are male(label = 0), the rest 1680 are female(label = 1).
 According to the requirement, only one working point applied ($\pi$ = 0.5
-C<sub>fn</sub>=1 C<sub>fp</sub>=1 ) [ 1 female   0 male]
+C<sub>fn</sub>=1 C<sub>fp</sub>=1 ) 
 
 # Feature
 
@@ -17,39 +17,44 @@ C<sub>fn</sub>=1 C<sub>fp</sub>=1 ) [ 1 female   0 male]
 
 | 1st principle component | scatter of first two components |
 |:-----------------------:|:-------------------------------:|
-| ![](images/gau_1st.jpg) |   ![](images/gau_scatter.jpg)   |
+| ![](images/gau_1st.jpg) |     ![](images/scatter.png)     |
 |                         |    ![](images/gau_2ndPC.jpg)    |
 
 
 
 ### Histogram of dataset features - LDA direction
-![](images/LDA.jpg)
- - Gaussian may not sufficient for dividing the gender according to the observation from its first principal component
- - LDA shows that a linear classifier may be able to discriminate the classes. But, regarding the features we observed in scatter plot, no linear models (eg,GMM ) maybe will have better performance 
+[<img src="images/LDA.jpg" width="350"/>](LDA.png)
+ - Gaussian may not sufficient for dividing the gender according to the observation from male and female's first principal component
+ - LDA shows that a linear classifier may have potential to discriminate the classes. However, regarding the features we observed in scatter plot, no linear model, for example GMM model with 3 components maybe will exhibit better performance 
 
 ### Pearson correlation coefficient for the dataset features
 
-|          Dataset          |             Male              | Female                          |
-|:-------------------------:|:-----------------------------:|:--------------------------------|
-| ![](images/heatmap_D.png) | ![](images/heatmap_Dmale.png) | ![](images/heatmap_Dfemale.png) |
+|                            Dataset                             |                                  Male                                  | Female                                                                     |
+|:--------------------------------------------------------------:|:----------------------------------------------------------------------:|:---------------------------------------------------------------------------|
+| [<img src="images/heatmap_D.png" width="250"/>](heatmap_D.png) | [<img src="images/heatmap_Dmale.png" width="300"/>](heatmap_Dmale.png) | [<img src="images/heatmap_Dfemale.png" width="250"/>](heatmap_Dfemale.png) |
 
 Dark color implies larger value means high correlation between those two features.
-From the graph, we can found that no matter each gender, some features are significantly have large correlation with others.
-It means we may benefit from using PCA to map data to xx, But an explained variance will also draw below to pick a suitable left dimension number
-5
+
+From the graph, it shows some features are significantly have large correlation with others no matter in which gender group.
+
+It means we may benefit from using PCA to map data to lower dimension, 
+We use an explained variance graph as well to help us have better idea about suitable dimension could be retained.
+
 ### PCA_explained_variance
 
 
-[<img src="images/PCA_explained_var.jpg" width="250"/>](image.png)
+[<img src="images/PCA_explained_variance.png" width="250"/>](pca_explained_var.png)
 
-with 10 dimension we could explain about 99% of the dataset variance. 97% with 8 directions 91% with 6 directions. To start, we will consider these three values for PCA.
+with 10 dimension we could explain about 99% of the dataset variance. 96% remains with 9 directions. 94% only when the dimension jumps into 8 direction.
+
+To start, we will consider full dimension(12) to 8 dim for PCA.
 
 
 
 # Building a classifier for the task
 
-We adopt K- fold protol with K = 5. We measure performance in terms of minimum costs( minDCF).
-Then, We will assess the actual DCF( actual C<sub>prim</sub>) and score calibration once we have selected the top-performing model
+We have implemented K- fold protol with K = 5. We measure performance in terms of minimum costs( minDCF).
+Then, We will assess the actual DCF( actual C<sub>prim</sub>) and score calibration once we have chosen the top-performing model.
 
 ## Gaussian classifier
 We test all three approaches(MVG, Naive Bayes model, Tied) also with the effect of PCA
@@ -57,34 +62,35 @@ We test all three approaches(MVG, Naive Bayes model, Tied) also with the effect 
 ### MVG classifier - minDCF(K-Fold) 
 | PCA | minDCF( $\widetilde{\pi}$ = 0.5) | 
 |:---:|:--------------------------------:|
-|  -  |              0.144               | 
-| 11  |            **0.136**             |
-| 10  |              0 189               | 
-|  8  |              0.261               | 
-|  6  |              0.282               | 
+|  -  |            **0.114**             |
+| 11  |              0.124               | 
+| 10  |              0 166               | 
+|  9  |              0.190               | 
+|  8  |              0.193               | 
 
-When we reduce dimension into 11, the model looks have the best performance among them
+When keeping all features in the dataset will keep a best performance
 
-### Tied MVG classifier - minDCF(K-Fold) 
+### Naive MVG classifier - minDCF(K-Fold) 
 | PCA | minDCF( $\widetilde{\pi}$ = 0.5) | 
 |:---:|:--------------------------------:|
-|  -  |            **0.127**             |
-| 11  |              0.129               | 
-| 10  |              0 187               | 
-|  8  |              0.257               | 
-|  6  |              0.278               | 
+|  -  |              0.463               |
+| 12  |            **0.119**             |
+| 11  |              0.123               | 
+| 10  |              0 168               | 
+|  9  |              0.195               | 
+|  8  |              0.198               | 
 
 It shows the performance is better when dimension is in original size and when reduce 1, it increases a little but is still in tolerance. However, when dimension comes to 10, the cost increase significantly.
 
 
-### Naive MVG classifier - minDCF(K-Fold) 
+### Tied MVG classifier - minDCF(K-Fold) 
 | PCA | minDCF( $\widetilde{\pi}$ = 0.5) |
 |:---:|:--------------------------------:|
-|  -  |              0.456               |
-| 11  |            **0.136**             | 
-| 10  |              0.184               | 
-|  8  |              0.257               |
-|  6  |              0.277               | 
+|  -  |            **0.114**             |
+| 11  |              0.118               | 
+| 10  |              0.162               | 
+|  9  |              0.186               |
+|  8  |              0.189               | 
 
 
 
@@ -125,7 +131,6 @@ Then we try the kernel SVM, we start from polynomial kernels. Now we only consid
 
 For RBF kernel
 
-Because in some case, better performance can be seen when dimension reduce into 11, so we try to apply our xxx model with PCA data
 
 
 ## Gaussian Mixture Models

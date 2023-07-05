@@ -12,6 +12,8 @@ class MVG:
         self.LTR = LTR
         self.DVAL = DVAL
         self.LVAL = LVAL
+        self.tied = False
+        self.bayes = False
 
     def vrow(self, v):
         return v.reshape((1, v.size))
@@ -29,6 +31,8 @@ class MVG:
         return const - 0.5 * logdet - 0.5 * v
 
     def train(self, tied=False, bayes=False):
+        self.tied = tied
+        self.bayes = bayes
         # ndarray(12,576)
         DTR0 = self.DTR[:, self.LTR == 0]  # 0类的所有Data
         DTR1 = self.DTR[:, self.LTR == 1]  # 1类的所有Data
@@ -42,10 +46,10 @@ class MVG:
         # print(DTRc0.shape)
         # 协方差
         if tied:
-            print("enter tied")
+            print("enter ties train")
             self.sigma.append((np.dot(DTRc0, DTRc0.T) + np.dot(DTRc1, DTRc1.T)) / self.DTR.shape[1])
         elif bayes:
-            print("enter native")
+            print("enter bayes train")
            ## C = (np.dot(DTRc0, DTRc0.T) + np.dot(DTRc1, DTRc1.T)) / self.DTR.shape[1]
             self.sigma.append(np.dot(DTRc0, DTRc0.T) / DTRc0.shape[1])
             self.sigma.append(np.dot(DTRc1, DTRc1.T) / DTRc1.shape[1])
@@ -54,7 +58,7 @@ class MVG:
             self.sigma[1] = self.sigma[1] * identity
             # self.sigma.append(C)
         else:
-            print("enter normal")
+
             self.sigma.append(np.dot(DTRc0, DTRc0.T) / DTRc0.shape[1])
             self.sigma.append(np.dot(DTRc1, DTRc1.T) / DTRc1.shape[1])
             self.parameter = [{"mu": self.mu}, {"sigma": self.sigma}]
@@ -66,14 +70,12 @@ class MVG:
         return t
 
     ## output llr
-    def score(self, tied=False, bayes=False):
+    def score(self):
         tlogll0 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[0], self.sigma[0])
-        tlogll1 = 0
-        if tied:
+        if self.tied:
             tlogll1 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[1], self.sigma[0])
         else:
             tlogll1 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[1], self.sigma[1])
-            # print((tlogll1 - tlogll0).shape)
         return tlogll1 - tlogll0
 
     ##get score and compare with threshold
@@ -110,7 +112,6 @@ class MVG:
 
     # use effective_prior
     def minDcf(self, score, label, epiT):
-
         score = np.array(score).flatten()
         label = np.array(label).flatten()
         scoreArray = score.copy()
@@ -140,8 +141,7 @@ class MVG:
                 minT = t
                 minDCF = res[idx]
 
-        print("minDCF in MVG is : {}".format(minDCF))
-        print("minT in MVG is : {}".format(minT))
+        # print("minDCF in MVG is : {}".format(minDCF))
         return res.min()
 
     # use prior
