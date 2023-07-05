@@ -1,13 +1,14 @@
 import numpy as np
 import scipy
 import pdb
+import util
 
 
 class SVM:
-    def __init__(self, DTR, LTR, DVAL, LVAL, hyperPar):
+    def __init__(self, DTR, LTR, DVAL, LVAL,hyperParam):
         self.mu = []
         self.sigma = []
-        self.parameter = []
+        self.parameter = hyperParam # { "C":1, "K":0, "gamma":1, "d":2, "c":0}
         self.predictList = []
         self.DTR = DTR
         self.LTR = LTR
@@ -16,19 +17,13 @@ class SVM:
         self.Z = np.zeros(self.LTR.shape)
         self.Z[self.LTR == 1] = 1
         self.Z[self.LTR == 0] = -1
-    def vrow(self, v):
-        return v.reshape((1, v.size))
-
-    def mcol(self, v):
-        return v.reshape((v.size, 1))  # 变成列向量
 
 
-
-    def train_linear(self, C, K=1):
-        DTREXT = np.vstack([self.DTR, np.ones((1, self.DTR.shape[1])) * K])
+    def train_linear(self ):
+        DTREXT = np.vstack([self.DTR, np.ones((1, self.DTR.shape[1])) * self.parameter['K']])
 
         H = np.dot(DTREXT.T, DTREXT)
-        H = self.mcol(self.Z) * self.vrow(self.Z) * H
+        H = util.vcol(self.Z) * util.vrow(self.Z) * H
 
         def JDualv2(alpha):
             los_fun = -0.5 * np.dot(np.dot(alpha.T,H),alpha) + np.dot(alpha.T , np.ones(alpha.size))
@@ -40,28 +35,28 @@ class SVM:
         def JPrimal(w):
             S = np.dot(w.T, DTREXT)
             loss = np.maximum(np.zeros(S.shape), 1 - self.Z * S).sum()
-            return 0.5 * np.linalg.norm(w) ** 2 + C * loss
+            return 0.5 * np.linalg.norm(w) ** 2 + self.parameter['C'] * loss
 
         alphaStar, _x, _y = scipy.optimize.fmin_l_bfgs_b(
             LDual,
             np.zeros(self.DTR.shape[1]),
-            bounds=[(0, C)] * self.DTR.shape[1],
+            bounds=[(0, self.parameter['C'])] * self.DTR.shape[1],
             factr=1.0,
             maxiter=100000,
             maxfun=100000)
-        wStar = np.matmul(DTREXT,self.mcol(alphaStar * self.Z))
+        wStar = np.matmul(DTREXT,util.vcol(alphaStar * self.Z))
         # pdb.set_trace()
         #wStar = np.dot(np.dot(alphaStar,Z),DTREXT)
 
-        #wStar = np.dot(DTREXT, self.mcol(alphaStar) * self.mcol(Z))  # wStar 为 (feature+K 行，1列) 的列向量
+        #wStar = np.dot(DTREXT, util.vcol(alphaStar) * util.vcol(Z))  # wStar 为 (feature+K 行，1列) 的列向量
         print(JPrimal(wStar))
         print('my Dual loss ', JPrimal(wStar) + LDual(alphaStar)[0] )
         return wStar
 
 
-    def score(self,wStar,K):
+    def score(self,wStar):
 
-        xtilde_val = np.vstack([self.DVAL, np.ones((1, self.DVAL.shape[1])) * K])
+        xtilde_val = np.vstack([self.DVAL, np.ones((1, self.DVAL.shape[1])) * self.parameter['K']])
 
         res = np.dot(wStar.T,xtilde_val).reshape(-1)
         print(res.shape)
@@ -102,21 +97,22 @@ class SVM:
         print("minT in SVM is : {}".format(minT))
         return res.min()
 
-
-
-
-
-    # def KFunc_rbf(g):
-    #     def K(D1,D2):
-    #        DIST = self.mcol((D1**2).sum(0)) + self.vrow((D2**2).sum(0)) - 2*np.dot(D1.T,D2)
-    #        return np.exp(-g * DIST)
-    def train_RBF(self, C, gamma, K):  # 非线性 使用 核函数
+    # def kernel(X1, X2, type, gamma, d, c, K):
+    #     if (type == "RBF"):
+    #         # Dist = np.linalg.norm(x1 - x2) ** 2
+    #         Dist = util.vcol((X1 ** 2).sum(0)) + util.vrow((X2 ** 2).sum(0)) - 2 * np.dot(X1.T, X2)
+    #
+    #         kernel = np.exp(-gamma * Dist) + K ** 0.5
+    #     else:  # polynomial
+    #         kernel = (np.dot(X1.T, X2) + c) ** d + K ** 0.5
+    #     return kernel
+    def train_nolinear(self, type):  # 非线性 使用 核函数
         # DTREXT = np.vstack([DTR, np.ones((1, DTR.shape[1])) * K])
         Z = np.zeros(self.LTR.shape)
         Z[self.LTR == 1] = 1
         Z[self.LTR == 0] = -1
 
-        #H = np.dot(DTREXT.T, DTREXT)
+        # H = np.dot(DTREXT.T, DTREXT)
         # Dist = np.zeros((self.DTR.shape[1], self.DTR.shape[1]))
         # for i in range(self.DTR.shape[1]):
         #     for j in range(self.DTR.shape[1]):
@@ -125,15 +121,13 @@ class SVM:
         #         Dist[i, j] = np.linalg.norm(xi - xj) ** 2
         D1 = self.DTR
         D2 = self.DTR
-        Dist = self.mcol((D1**2).sum(0)) + self.vrow((D2**2).sum(0)) - 2*np.dot(D1.T,D2)
-        kernel = np.exp(-gamma * Dist) + K ** 0.5
-        H = self.mcol(Z) * self.vrow(Z) * kernel
+        if type == util.svm_kernel_type.rbf:
+            Dist = util.vcol((D1**2).sum(0)) + util.vrow((D2**2).sum(0)) - 2*np.dot(D1.T,D2)
+            kernel = np.exp(-self.parameter["gamma"] * Dist) + self.parameter['K'] ** 0.5
+        else: # polynomial
+            kernel = (np.dot(D1.T, D2) + self.parameter["c"]) ** self.parameter["d"] + self.parameter["K"] ** 0.5
 
-        def JDual(alpha):
-            Ha = np.dot(H, self.mcol(alpha))
-            aHa = np.dot(self.vrow(alpha), Ha)
-            a1 = alpha.sum()
-            return -0.5 * aHa.ravel() + a1, -Ha.ravel() + np.ones(alpha.size)  # 损失函数，梯度
+        H = util.vcol(Z) * util.vrow(Z) * kernel
 
         def JDualv2(alpha):
             los_fun = -0.5 * np.dot(np.dot(alpha.T, H), alpha) + np.dot(alpha.T, np.ones(alpha.size))
@@ -146,31 +140,23 @@ class SVM:
         alphaStar, _x, _y = scipy.optimize.fmin_l_bfgs_b(
             LDual,
             np.zeros(self.DTR.shape[1]),
-            bounds=[(0, C)] * self.DTR.shape[1],
+            bounds=[(0, self.parameter['C'])] * self.DTR.shape[1],
             factr=1.0,
             maxiter=100000,
             maxfun=100000)
         # wStar = np.dot(DTR, vcol(alphaStar) * vcol(Z))  # wStar 为 (feature+K 行，1列) 的列向量
-
+        # pdb.set_trace()
         #print('Dual loss ', JDual(alphaStar)[0])
         return alphaStar
-    def score_rbf(self, alphaStar, gamma, K):
-        Dist = self.mcol((self.DVAL ** 2).sum(0)) + self.vrow((self.DTR ** 2).sum(0)) - 2 * np.dot(self.DVAL.T, self.DTR)
-        kernel = np.exp(-gamma * Dist) + K ** 0.5
-        S = np.matmul(kernel, self.mcol(alphaStar * self.Z)).flatten()
-        # Z = np.zeros(self.LTR.shape)
-        # Z[self.LTR == 1] = 1
-        # Z[self.LTR == 0] = -1
-        # for i in range(self.DVAL.shape[1]):
-        #     xi = self.DVAL[:, i]
-        #     S = 0
-        #     for j in range(self.DTR.shape[1]):
-        #         xj = self.DTR[:, j]
-        #         Dist = np.linalg.norm(xi - xj) ** 2
-        #         kernel = np.exp(-gamma * Dist)
-        #         S += alphaStar[j] * Z[j] * kernel
+    def score_nolinear(self, alphaStar, type):
+        if type == util.svm_kernel_type.rbf:
+            Dist = util.vcol((self.DVAL ** 2).sum(0)) + util.vrow((self.DTR ** 2).sum(0)) - 2 * np.dot(self.DVAL.T, self.DTR)
+            kernel = np.exp(-self.parameter["gamma"] * Dist) + self.parameter['K'] ** 0.5
+        else: # polynomial
+            # pdb.set_trace()
+            kernel = (np.dot(self.DVAL.T, self.DTR) + self.parameter["c"]) ** self.parameter["d"] + self.parameter["K"] ** 0.5
+        # print(kernel)
+        S = np.matmul(kernel, util.vcol(alphaStar * self.Z)).flatten()
 
-        # pdb.set_trace()
-        print(S.shape)
         return S
 

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import scipy.linalg
 from scipy import stats
 from DataPrepareShow import *
-
+import util
 # import sys
 # sys.path.append('GenderIdentification/Models/')
 from Models import MVG
@@ -21,8 +21,6 @@ def PCA(D, L, m):
     U, s, Vh = np.linalg.svd(C)
     P = U[:, 0:m]
     DP = np.dot(P.T, D)
-    #draw explain variance graph
-    #draw_explain_variance(s)
 
     #draw PCA graph
     draw_PCA(DP,L,False,False,False)
@@ -221,12 +219,13 @@ def KFold(modelName, K, D, L, piTilde, hyperPar):
             # Cfp = ((piT * Cfn) / 0.99 - (piT) * Cfn) / (1 - piT)
             # minDCF = model.minDcf(score, label,piTilde)
         elif modelName == "SVM":
-            model = SVM.SVM(DTR, LTR, DVAL, LVAL, None)
+            model = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar) # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
             #wStar = model.train_linear(1)
             #hyper C=1 gamma=1 K=0
-            alphaStar = model.train_RBF(1, 1, 0)
+            alphaStar = model.train_nolinear(util.svm_kernel_type.poly)
+            # print(alphaStar)
             #score.append(model.score(wStar, 1))
-            score.append(model.score_rbf(alphaStar,1,0))
+            score.append(model.score_nolinear(alphaStar,util.svm_kernel_type.poly))
             label.append(LVAL)
         elif modelName == "GMM":
             model = GMM.GMM(DTR, LTR, DVAL, LVAL, hyperPar)
@@ -376,7 +375,7 @@ def main():
         hy, model, minDCF = KFoldHyper("GMM", hyperParListGMM, 5, D, L, 0.5)
         print("GMM : with hyperparamter w0 ={}, w1={}, bestminDCF:{}  ".format(hy["w0"], hy["w1"], minDCF))
     elif model == "SVM":
-        model,minDCF= KFold("SVM", 5, D, L,0.5,None)
+        model,minDCF= KFold("SVM", 5, D, L,0.5, {"C":1, "K":0, "gamma":1, "d":2, "c":1})
         print("SVM : bestminDCF:{} ".format(minDCF))
     else:
         print("no corresponding model")
