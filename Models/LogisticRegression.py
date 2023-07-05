@@ -1,5 +1,6 @@
 import numpy as np
 import scipy
+import pdb
 
 
 class LR:
@@ -79,7 +80,7 @@ class LR:
         # print(f'score={score.mean()}')
         # print(f'score={len(score)}')
         label = np.array(label).flatten()
-        scoreArray = score
+        scoreArray = score.copy()
         scoreArray.sort()
 
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
@@ -105,10 +106,10 @@ class LR:
             sysRisk = min(piTilde, 1 - piTilde)
             res[idx] = res[idx] /sysRisk # 除 risk of an optimal system
 
-            # if res[idx] < minDCF:
-            #     minT = t
-            #     minDCF = res[idx]
-        print(res)
+            if res[idx] < minDCF:
+                minT = t
+                minDCF = res[idx]
+
         # print(minDCF)
         # print(minT)
         return res.min()

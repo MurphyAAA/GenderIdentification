@@ -112,7 +112,7 @@ class MVG:
     def minDcf(self, score, label, epiT):
         score = np.array(score).flatten()
         label = np.array(label).flatten()
-        scoreArray = score
+        scoreArray = score.copy()
         scoreArray.sort()
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)

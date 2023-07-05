@@ -44,7 +44,8 @@ It means we may benefit from using PCA to map data to xx, But an explained varia
 5
 ### PCA_explained_variance
 
-![](images/PCA_explained_var.jpg)
+
+[<img src="images/PCA_explained_var.jpg" width="250"/>](image.png)
 
 with 10 dimension we could explain about 99% of the dataset variance. 97% with 8 directions 91% with 6 directions. To start, we will consider these three values for PCA.
 
@@ -109,7 +110,7 @@ The Naive MVG shows the similar answer with MVG but this method reduce computati
 |   10   |              0.460               | 
 ## Support Vector Machine
 ## Gaussian Mixture Models
-
+We assume male and female training data both have different components [1,2,4]. we tried different combination
 ## Calibration and fusion
 # Experimental Evaluation
 now we analyze a model performance on the evaluation set. We start from the selected model and then different choices will be analyzed as well

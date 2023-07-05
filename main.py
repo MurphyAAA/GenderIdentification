@@ -9,6 +9,7 @@ from DataPrepareShow import *
 from Models import MVG
 from Models import LogisticRegression
 from Models import SVM
+from Models import GMM
 
 
 def PCA(D, L, m):
@@ -37,7 +38,6 @@ def PCA(D, L, m):
     # plt.grid(True)
     # plt.show()
 
-
     # plt.scatter(D1y, D1x, alpha=0.4,label='male')
     # plt.scatter(D2y, D2x, alpha=0.4, label='female')
     # plt.hist(DP[0, L == 0], bins=30, density=True, alpha=0.4, label='male')
@@ -50,7 +50,6 @@ def PCA(D, L, m):
     # plt.show()
     # print(f'DP: {DP.shape}')
     # print(f'L: {L.shape}')
-
 
     return DP
 
@@ -79,7 +78,6 @@ def LDA(D, L, m):
     W = U[:, ::-1][:, 0:m]  # biggest eigenvector 2分类。can only reduced to 1D
     Dp = np.dot(W.T, D)
 
-
     D1x = Dp[0, L == 0]
     D2x = Dp[0, L == 1]
 
@@ -89,6 +87,7 @@ def LDA(D, L, m):
     plt.tight_layout()
     plt.show()
     return Dp
+
 
 #
 # def logpdf_GAU_ND(x, mu, C):  # 概率密度、likelihood，x是未去中心化的原数据
@@ -145,7 +144,7 @@ def LDA(D, L, m):
 ## K: int
 ## D: 12*2400
 ## L : array([1,0,0,0...]) 2400
-def KFold(modelName, K, D, L,  piTilde,hyperPar):
+def KFold(modelName, K, D, L, piTilde, hyperPar):
     ## D0: 12 * 720
     D0 = D[:, L == 0]
     L0 = L[L == 0]
@@ -156,7 +155,7 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
     # L1 = [x for x in L if x == 1]
 
     ## shuffle the sample
-    np.random.seed(seed = 0)
+    np.random.seed(seed=0)
     ind0 = np.random.permutation(D0.shape[1])
     ind1 = np.random.permutation(D1.shape[1])
     bestAcc = 0
@@ -202,9 +201,8 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
 
 
         elif modelName == "LR":
-            model = LogisticRegression.LR(DTR, LTR, DVAL, LVAL, hyperPar)
+            model = LogisticRegression.LR(DTR, LTR, DVAL, LVAL, hyperPar["lam"])
             model.train()
-           ## model.estimate()
             score.append(model.score())
             label.append(LVAL)
             # Cfn = 1
@@ -214,15 +212,18 @@ def KFold(modelName, K, D, L,  piTilde,hyperPar):
         elif modelName == "SVM":
             model = SVM.SVM(DTR, LTR, DVAL, LVAL, 1)
             wStar = model.train_linear(1)
-            alphaStar = model.train_RBF(1,1,0)
-
-
-            score.append(model.score(wStar,1))
-            #score.append(model.score_rbf(alphaStar,1,1))
+            alphaStar = model.train_RBF(1, 1, 0)
+            score.append(model.score(wStar, 1))
+            # score.append(model.score_rbf(alphaStar,1,1))
             label.append(LVAL)
-            # minDCF = model.minDcf(score, label,0.5)
 
-    #print("piT is {}".format(piT))
+        elif modelName == "GMM":
+            model = GMM.GMM(DTR, LTR, DVAL, LVAL, hyperPar)
+            model.train()
+            score.append(model.score())
+            label.append(LVAL)
+
+    # print("piT is {}".format(piT))
     # print(f'score[0]={score[0].mean()}')
     minDCF = model.minDcf(score, label, piTilde)
     return model, minDCF
@@ -260,8 +261,6 @@ def LOO_Gaussian(D, L, method="MVG", Tied=False):
     return predict, LVAL
 
 
-
-
 def plot_scatter(D, L):
     D0 = D[:, L == 0]
     D1 = D[:, L == 1]
@@ -282,36 +281,50 @@ def plot_scatter(D, L):
     plt.show()
 
 
-
-def KFoldHyper(hyperParList, K, D, L, piTilde):
+def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
     bestminDCF = 1
-    bestHyper=0
-    x = hyperParList[0]["lam"]
+    bestHyper = 0
     y = []
-    for i in hyperParList[0]["lam"]:
-        model,minDCF = KFold("LR", K, D, L, piTilde, i)
-        y.append(minDCF)
-        #print(minDCF)
-        # print("lambda = {}:  minDCF:{} ".format(i,minDCF))
+    w0y = []
 
-        if minDCF < bestminDCF:
-            bestminDCF = minDCF
-            bestHyper = i
-    ## with norm
-    ## x = [1e-06, 1e-05, 0.0001, 0.001, 0.01, 0.1, 1, 10]
-    ## y = [0.11785714285714281, 0.11785714285714281, 0.11666666666666663, 0.12400793650793654, 0.14464285714285713, 0.2003968253968254, 0.33670634920634923, 0.4597222222222222]
-    # print(x)
-    # print(y)
-    plt.grid(True)
-    plt.xscale('log')
-    plt.plot(x, y)
-    plt.xlabel('lambda')
-    plt.ylabel('minDCF')
+    if modelName == "LR":
+        x = hyperParList["lam"]
+        for i in hyperParList["lam"]:
+            hyperPar = {"lam": i}
+            model, minDCF = KFold("LR", K, D, L, piTilde, hyperPar)
+            y.append(minDCF)
+            print("lambda = {}:  minDCF:{} ".format(i, minDCF))
+
+            if minDCF < bestminDCF:
+                bestminDCF = minDCF
+                bestHyper = {"lam": i}
+
+    if modelName == "GMM":
+        for w0 in hyperParList["w0"]:
+            y.clear()
+            for w1 in hyperParList["w1"]:
+                hyperPar = {'w0': w0, 'w1': w1}
+                print("enter w0 = {} w1= {}   ".format(w0, w1))
+                model, minDCF = KFold("GMM", K, D, L, piTilde, hyperPar)
+                y.append(minDCF)
+                print("w0 = {} w1={}:  minDCF:{} ".format(w0, w1, minDCF))
+                if minDCF < bestminDCF:
+                    bestminDCF = minDCF
+                    bestHyper = {'w0': w0, 'w1': w1}
+            w0y.append(y)
+
+    # plt.grid(True)
+    # plt.xscale('log')
+    # plt.plot(x, y)
+    # plt.xlabel('lambda')
+    # plt.ylabel('minDCF')
     # plt.title('Line Chart')
-    plt.show()
-    return bestHyper,model,bestminDCF
+    # plt.show()
+    return bestHyper, model, bestminDCF
+
+
 def ConfusionMatrix(predictList, L):
-    CM = np.zeros((2,2)) # 两个类
+    CM = np.zeros((2, 2))  # 两个类
     # real class:    0   1
     # predict   : 0  TN  FN
     #             1  FP  TP
@@ -339,52 +352,19 @@ def main():
     # D1.shape: (10, 1109)
     # True: 0 False: 1
 
-    D = PCA(D_Znorm, L, 11)  # Dimensionality reduction  12D -> 10D
+    D = PCA(D, L, 9)  # Dimensionality reduction  12D -> 10D
     # D = LDA(D_Znorm, L, 1)
-    # model,minDCF= KFold("MVG", 5, D, L,0.5,0)
+    # model,minDCF= KFold("MVG", 5, D, L,0.5,None)
     # print("MVG : bestminDCF:{}   ".format(minDCF))
 
-    hyperParList = [{"lam": [10 ** -6, 10 ** -5,10 ** -4,10 ** -3,10 ** -2,10 ** -1,1,10]}]
-    hy,model,minDCF= KFoldHyper(hyperParList, 5, D, L,0.5)
-    print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy,  minDCF))
+    hyperParListLR = {"lam": [10 ** -6, 10 ** -5, 10 ** -4, 10 ** -3, 10 ** -2, 10 ** -1, 1, 10]}
+    # hy,model,minDCF= KFoldHyper("LR", hyperParListLR, 5, D, L,0.5)
+    # print("Logic regression : with hyperparamter lambda = {}  bestminDCF:{}   ".format(hy["lam"],  minDCF))
 
-
-    # model,minDCF= KFold("MVG", 5, D, L,0.5,0)
-    # model,minDCF= KFold("LR", 5, D, L,0.5,hyperParList)
-
+    hyperParListGMM = {"w0": [1, 2, 4], "w1": [1, 2, 4]}
+    hy, model, minDCF = KFoldHyper("GMM", hyperParListGMM, 5, D, L, 0.5)
+    print("GMM : with hyperparamter w0 ={}, w1={}, bestminDCF:{}  ".format(hy["w0"], hy["w1"], minDCF))
 
 
 if __name__ == '__main__':
-    # Hyperparameters
-    # hyperparameters = {"m": 10, "l": 0.001}
     main()
-
-
-
-
-    # D = LDA(D,L,2)
-    # plot_hist(D, L)
-    # (DTR, LTR), (DVAL, LVAL) = split_data(D, L)
-    # DTE, LTE = load('./data/Test.txt')
-    # # models
-    # method = ["MVG", "Bayes"]
-    # predict = MVG(DTR, LTR, DVAL,method[0]) # acc:90.0%
-    # # predict = MVG(DTR, LTR, DVAL, method[1]) # Bayes method: acc: 90.0%
-    #
-    # # predict = TiedMVG(DTR, LTR, DVAL, method[0]) # acc: 90.375%
-    # # predict = TiedMVG(DTR, LTR, DVAL, method[1]) # acc: 90.375%
-    #
-    # # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=False) # MVG acc: 90.66666666666666%
-    # # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=False) # Bayes acc: 90.54166666666667%
-    # # predict, LVAL = LOO_Gaussian(D, L, method[0], Tied=True) # TiedMVG acc: 90.54166666666667%
-    # # predict, LVAL = LOO_Gaussian(D, L, method[1], Tied=True)  # TiedBayes acc: 90.625%
-    #
-    # predict = BLR(DTR,LTR,0.001,DVAL) # acc: 92%
-    # acc, err = computeAccuracy(predict, LVAL)
-    #
-    # CM = ConfusionMatrix(predict,LVAL)
-    # print(CM)
-    # print("-----------test-----------")
-    # print(f'|acc:{acc*100}%, err:{err*100}%|')
-    # print("--------------------------")
-
