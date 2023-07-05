@@ -67,21 +67,13 @@ class MVG:
 
     ## output llr
     def score(self, tied=False, bayes=False):
-
+        tlogll0 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[0], self.sigma[0])
+        tlogll1 = 0
         if tied:
-            print("enter score tied ")
-            tlogll0 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[0], self.sigma[0])
             tlogll1 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[1], self.sigma[0])
-        elif bayes:
-            print("enter score bayes ")
-            tlogll0 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[0], self.sigma[0])
-            tlogll1 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[1], self.sigma[1])
-
         else:
-            print("enter score normal")
-            tlogll0 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[0], self.sigma[0])
             tlogll1 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[1], self.sigma[1])
-            print((tlogll1 - tlogll0).shape)
+            # print((tlogll1 - tlogll0).shape)
         return tlogll1 - tlogll0
 
     ##get score and compare with threshold
@@ -118,9 +110,10 @@ class MVG:
 
     # use effective_prior
     def minDcf(self, score, label, epiT):
-        label = np.array(label).flatten()
+
         score = np.array(score).flatten()
-        scoreArray = score
+        label = np.array(label).flatten()
+        scoreArray = score.copy()
         scoreArray.sort()
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)

@@ -39,7 +39,8 @@ It means we may benefit from using PCA to map data to xx, But an explained varia
 5
 ### PCA_explained_variance
 
-![](images/PCA_explained_var.jpg)
+
+[<img src="images/PCA_explained_var.jpg" width="250"/>](image.png)
 
 with 10 dimension we could explain about 99% of the dataset variance. 97% with 8 directions 91% with 6 directions. To start, we will consider these three values for PCA.
 
@@ -94,7 +95,18 @@ The Naive MVG shows the similar answer with MVG but this method reduce computati
 We now consider Logistic Regression models. 
 We start analyzing the linear classifier without PCA
 
+
 ### Logic Regression classifier - minDCF(K-Fold) 
+| lambda | minDCF( $\widetilde{\pi}$ = 0.5) |
+|:------:|:--------------------------------:|
+| 1e-06  |              0.118               |
+| 1e-05  |              0.118               | 
+| 0.0001 |              0.117               | 
+| 0.001  |              0.124               |
+|  0.01  |              0.145               | 
+|  0.1   |              0.200               |
+|   1    |              0.337               | 
+|   10   |              0.460               | 
 
 ![](images/Linear_LR.jpg)
 It is surprise that the performance is not quite worse since minDCF can reach 0.118, it is better than MVG model
@@ -114,8 +126,11 @@ Then we try the kernel SVM, we start from polynomial kernels. Now we only consid
 For RBF kernel
 
 Because in some case, better performance can be seen when dimension reduce into 11, so we try to apply our xxx model with PCA data
+
+
 ## Gaussian Mixture Models
-Finally, we explore another approaches, which is GMM classifiers.
+We assume male and female training data both have different components [1,2,4]. we tried different combination
+
 ## Calibration and fusion
 We use the DET plot to compare the best models that we collect from now.
 It can be seen that....
