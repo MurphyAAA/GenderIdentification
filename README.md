@@ -109,8 +109,8 @@ We start analyzing the linear classifier without PCA
 | 1e-05  |              0.118               | 
 | 0.0001 |              0.117               | 
 | 0.001  |              0.124               |
-|  0.01  |              0.145               | 
-|  0.1   |              0.200               |
+|  0.01  |              0.127               | 
+|  0.1   |              0.126               |
 |   1    |              0.337               | 
 |   10   |              0.460               | 
 
@@ -127,11 +127,45 @@ Up to know, the best model is linear Regression with original PCA.
 ## Support Vector Machine
 We move to SVM model, we try linear SVM firstly
 
+1: no PCA 
+
+|   C   | minDCF( $\widetilde{\pi}$ = 0.5) |
+|:-----:|:--------------------------------:|
+| 1e-05 |                1                 | 
+| 1e-04 |              0.137               | 
+| 0.001 |              0.120               |
+| 0.01  |              0.115               | 
+|  0.1  |              0.115               |
+|   1   |              0.115               | 
+|  10   |              0.115               | 
+
+
 Then we try the kernel SVM, we start from polynomial kernels. Now we only consider original dimension (no PCA)
 
-For RBF kernel
+For Poly kernel
 
+1 d =2 c = 0
 
+|   C   | minDCF( $\widetilde{\pi}$ = 0.5) |
+|:-----:|:--------------------------------:|
+| 1e-05 |                1                 | 
+| 1e-04 |              0.119               | 
+| 0.001 |              0.131               |
+| 0.01  |              0.127               | 
+|  0.1  |              0.115               |
+|   1   |              0.119               | 
+
+For RBF
+1  logGAMMA= -3  k=0
+
+|   C   | minDCF( $\widetilde{\pi}$ = 0.5) |
+|:-----:|:--------------------------------:|
+| 1e-05 |                1                 | 
+| 1e-04 |              0.199               | 
+| 0.001 |              0.131               |
+| 0.01  |              0.127               | 
+|  0.1  |              0.115               |
+|   1   |              0.119               | 
 
 ## Gaussian Mixture Models
 We assume male and female training data both have different components [1,2,4]. we tried different combination

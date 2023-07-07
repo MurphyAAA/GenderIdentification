@@ -21,7 +21,6 @@ class SVM:
 
     def train_linear(self ):
         DTREXT = np.vstack([self.DTR, np.ones((1, self.DTR.shape[1])) * self.parameter['K']])
-
         H = np.dot(DTREXT.T, DTREXT)
         H = util.vcol(self.Z) * util.vrow(self.Z) * H
 
@@ -44,22 +43,21 @@ class SVM:
             factr=1.0,
             maxiter=100000,
             maxfun=100000)
+
         wStar = np.matmul(DTREXT,util.vcol(alphaStar * self.Z))
+
         # pdb.set_trace()
         #wStar = np.dot(np.dot(alphaStar,Z),DTREXT)
 
         #wStar = np.dot(DTREXT, util.vcol(alphaStar) * util.vcol(Z))  # wStar 为 (feature+K 行，1列) 的列向量
-        print(JPrimal(wStar))
+
         print('my Dual loss ', JPrimal(wStar) + LDual(alphaStar)[0] )
         return wStar
 
 
     def score(self,wStar):
-
         xtilde_val = np.vstack([self.DVAL, np.ones((1, self.DVAL.shape[1])) * self.parameter['K']])
-
         res = np.dot(wStar.T,xtilde_val).reshape(-1)
-        print(res.shape)
         return res
 
 
@@ -93,8 +91,8 @@ class SVM:
                 minT = t
                 minDCF = res[idx]
 
-        print("minDCF in SVM is : {}".format(minDCF))
-        print("minT in SVM is : {}".format(minT))
+        print("minDCF with par {} in SVM is : {}".format(self.parameter["C"],minDCF))
+        #print("minT in SVM is : {}".format(minT))
         return res.min()
 
     # def kernel(X1, X2, type, gamma, d, c, K):
@@ -123,7 +121,9 @@ class SVM:
         D2 = self.DTR
         if type == util.svm_kernel_type.rbf:
             Dist = util.vcol((D1**2).sum(0)) + util.vrow((D2**2).sum(0)) - 2*np.dot(D1.T,D2)
-            kernel = np.exp(-self.parameter["gamma"] * Dist) + self.parameter['K'] ** 0.5
+            # kernel = np.exp(-np.exp(self.parameter["loggamma"])* Dist) + self.parameter['K'] ** 0.5
+            kernel = np.exp(-self.parameter["loggamma"] * Dist) + self.parameter['K'] ** 0.5
+
         else: # polynomial
             kernel = (np.dot(D1.T, D2) + self.parameter["c"]) ** self.parameter["d"] + self.parameter["K"] ** 0.5
 
@@ -146,12 +146,14 @@ class SVM:
             maxfun=100000)
         # wStar = np.dot(DTR, vcol(alphaStar) * vcol(Z))  # wStar 为 (feature+K 行，1列) 的列向量
         # pdb.set_trace()
-        #print('Dual loss ', JDual(alphaStar)[0])
+        print('Dual loss ', JDualv2(alphaStar)[0])
         return alphaStar
     def score_nolinear(self, alphaStar, type):
         if type == util.svm_kernel_type.rbf:
             Dist = util.vcol((self.DVAL ** 2).sum(0)) + util.vrow((self.DTR ** 2).sum(0)) - 2 * np.dot(self.DVAL.T, self.DTR)
-            kernel = np.exp(-self.parameter["gamma"] * Dist) + self.parameter['K'] ** 0.5
+            #kernel = np.exp(-self.parameter["gamma"] * Dist) + self.parameter['K'] ** 0.5
+            kernel = np.exp(-self.parameter["loggamma"]* Dist) + self.parameter['K'] ** 0.5
+
         else: # polynomial
             # pdb.set_trace()
             kernel = (np.dot(self.DVAL.T, self.DTR) + self.parameter["c"]) ** self.parameter["d"] + self.parameter["K"] ** 0.5

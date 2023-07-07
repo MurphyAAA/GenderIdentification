@@ -141,7 +141,7 @@ class MVG:
                 minT = t
                 minDCF = res[idx]
 
-        # print("minDCF in MVG is : {}".format(minDCF))
+        print("minDCF in MVG is : {}".format(minDCF))
         return res.min()
 
     # use prior

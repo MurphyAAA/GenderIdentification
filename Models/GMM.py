@@ -13,8 +13,8 @@ class GMM:
         self.LTR = LTR
         self.DVAL = DVAL
         self.LVAL = LVAL
-        self.w0 = hyperPar["w0"]
-        self.w1 = hyperPar["w1"]
+        self.n0 = hyperPar["n0"]
+        self.n1 = hyperPar["n1"]
 
     def vrow(self, v):
         return v.reshape((1, v.size))
@@ -107,7 +107,7 @@ class GMM:
                 lLL.append(self.vrow(ll))
             LL = np.vstack(lLL)
             margin_new = scipy.special.logsumexp(LL, axis=0)
-            print(margin_new.sum())
+            #print(margin_new.sum())
             _llOld = _ll
             _ll = margin_new.sum() / X.shape[1]
 
@@ -132,10 +132,10 @@ class GMM:
         # print(DTRc0.shape)
         self.sigma.append(np.dot(DTRc0, DTRc0.T) / DTRc0.shape[1])
         self.sigma.append(np.dot(DTRc1, DTRc1.T) / DTRc1.shape[1])
-        GMM0_init = [(self.w0, self.mu[0], self.sigma[0])]
-        GMM1_init = [(self.w1, self.mu[1], self.sigma[1])]
-        gmm_gen0 = self.LBG(GMM0_init, alpha=0.1, iterNum=2, X=DTR0, diagCov=False, tiedCov=False, psi=0.01)
-        gmm_gen1 = self.LBG(GMM1_init, alpha=0.1, iterNum=2, X=DTR1, diagCov=False, tiedCov=False, psi=0.01)
+        GMM0_init = [(1, self.mu[0], self.sigma[0])]
+        GMM1_init = [(1, self.mu[1], self.sigma[1])]
+        gmm_gen0 = self.LBG(GMM0_init, alpha=0.1, iterNum=self.n0, X=DTR0, diagCov=False, tiedCov=False, psi=0.01)
+        gmm_gen1 = self.LBG(GMM1_init, alpha=0.1, iterNum=self.n1, X=DTR1, diagCov=False, tiedCov=False, psi=0.01)
         self.parameter = {"gmm0": gmm_gen0, "gmm1": gmm_gen1}
 
     def bayes_decision_threshold(self, pi1, Cfn, Cfp):
@@ -193,7 +193,7 @@ class GMM:
                 minT = t
                 minDCF = res[idx]
 
-        print("minDCF in GMM is : {}".format(minDCF))
+        #print("minDCF in GMM is : {}".format(minDCF))
 
         return res.min()
 
