@@ -168,7 +168,35 @@ For RBF
 |   1   |              0.119               | 
 
 ## Gaussian Mixture Models
-We assume male and female training data both have different components [1,2,4]. we tried different combination
+We assume male and female training data both have different components [1,2,4,8,16]. we tried different combination. Because a dimension reduction doesn't bring a good result. we will only try original data
+
+![](images/GMM.png)
+Since we found Tied Gaussian has a good performed in MVG models, so we will mainly consider Full Covariance(FC) and Ties(T) models.
+And from the above graph, we notice that the candidate components number would be 2 and 4 in male data. 4 and 8 in female data. so we tried different combination to find a better solution 
+
+
+| Male K | Female K | minDCF( $\widetilde{\pi}$ = 0.5) | 
+|:-------|:---------|:--------------------------------:|
+| 2(T)   | 4(FC)    |              0.103               |
+| 2(T)   | 8(T)     |              0.101               |
+| 2(D-T) | 4(FC)    |              0.221               |
+| 2(D-T) | 8(FC)    |              0.223               |
+| 2(FC)  | 4(FC)    |            **0.079**             |
+| 2(FC)  | 4(T)     |              0.083               |
+| 2(FC)  | 8(FC)    |              0.085               |
+| 2(FC)  | 8(T)     |              0.083               |
+| -----  | -------- |            ----------            |
+| 4(D-T) | 4(FC)    |              0.126               |
+| 4(D-T) | 8(T)     |              0.127               |
+| 4(T)   | 4(FC)    |              0.073               |
+| 4(T)   | 4(T)     |            **0.070**             |
+| 4(T)   | 8(FC)    |              0.078               |
+| 4(T)   | 8(T)     |              0.073               |
+| 4(FC)  | 4(FC)    |            **0.072**             |
+
+It can be seen that if male anne female are both divided into 4 components, with Tied model can show a rather better solution. It means the feature in our dataset are both have the similar distribution, rather, the diagonal represent worse result means features are dependent with each other which is also align with the heatmap
+
+Finally, we selected 4(T) -4(T) as our best model in GMM
 
 ## Calibration and fusion
 We use the DET plot to compare the best models that we collect from now.

@@ -224,10 +224,10 @@ def KFold(modelName, K, D, L, piTilde, hyperPar):
             model = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar) # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
             #wStar = model.train_linear()
             #hyper C=1 gamma=1 K=0
-            alphaStar = model.train_nolinear(util.svm_kernel_type.poly)
+            alphaStar = model.train_nolinear(util.svm_kernel_type.rbf)
             # print(alphaStar)
             #score.append(model.score(wStar))
-            score.append(model.score_nolinear(alphaStar,util.svm_kernel_type.poly))
+            score.append(model.score_nolinear(alphaStar,util.svm_kernel_type.rbf))
             label.append(LVAL)
         elif modelName == "GMM":
             model = GMM.GMM(DTR, LTR, DVAL, LVAL, hyperPar)
@@ -294,7 +294,7 @@ def plot_scatter(D, L):
 
 
 def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
- 
+
 
     bestminDCF = 1
     bestHyper = 0
@@ -326,7 +326,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
 
     if modelName == "SVM":
         for C in hyperParList["C"]:
-            model, minDCF = KFold("SVM", K, D, L, piTilde, {"C":C, "K":0, "loggamma":2, "d":2, "c":1})
+            model, minDCF = KFold("SVM", K, D, L, piTilde, {"C":C, "K":0, "loggamma":1, "d":2, "c":1})
             y.append(minDCF)
             print("C = {}:  minDCF:{} ".format(C, minDCF))
             if minDCF < bestminDCF:
@@ -384,11 +384,11 @@ def main():
         hy,model,minDCF= KFoldHyper("LR", hyperParListLR, 5, D, L,0.5)
         print("Logic regression : with hyper_paramter lambda = {}  bestminDCF:{}   ".format(hy["lam"],  minDCF))
     elif model == "GMM":
-        hyperParListGMM = {"n0": [0, 1, 2,3,4], "n1": [0, 1, 2,3,4]}
-        hy, model, minDCF = KFoldHyper("GMM", hyperParListGMM, 5, D, L, 0.5)
+        hyperParListGMM = {"n0": [0,1,2,3], "n1": [0,1,2,3]}
+        hy, model, minDCF = KFoldHyper("GMM", hyperParListGMM, 5, D_Znorm, L, 0.5)
         print("GMM : with hyperparamter n0 ={}, n1={}, bestminDCF:{}  ".format(hy["n0"], hy["n1"], minDCF))
     elif model == "SVM":
-        hyperParListSVM = {"C":[ 2 * 10 ** -5, 5 * 10 ** -5, 10 ** -4, 2 * 10 ** -4, 5 * 10 ** -4, 10 ** -3, 2 * 10 ** -3, 5 * 10 ** -3, 10**-2],"K":0, "gamma":1,"d":2,"c":1}
+        hyperParListSVM = {"C":[ 2 * 10 ** -5, 5 * 10 ** -5, 10 ** -4, 2 * 10 ** -4, 5 * 10 ** -4, 10 ** -3, 2 * 10 ** -3, 5 * 10 ** -3, 10**-2],"K":0, "loggamma":1,"d":2,"c":1}
         hy, model, minDCF = KFoldHyper("SVM", hyperParListSVM, 5, D, L, 0.5)
         print("SVM : bestminDCF:{} ".format(minDCF))
     else:

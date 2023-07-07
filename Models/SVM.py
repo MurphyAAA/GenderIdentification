@@ -45,8 +45,6 @@ class SVM:
             maxfun=100000)
 
         wStar = np.matmul(DTREXT,util.vcol(alphaStar * self.Z))
-
-        # pdb.set_trace()
         #wStar = np.dot(np.dot(alphaStar,Z),DTREXT)
 
         #wStar = np.dot(DTREXT, util.vcol(alphaStar) * util.vcol(Z))  # wStar 为 (feature+K 行，1列) 的列向量
@@ -72,6 +70,7 @@ class SVM:
         res = np.zeros(scoreArray.size)
         minDCF = 300
         minT = 2
+
         # {res[idx] : t}
         for idx, t in enumerate(scoreArray):
             Pred = np.int32(score > t)  # 强制类型转换为int32,True 变成1，False 变成0
@@ -95,15 +94,6 @@ class SVM:
         #print("minT in SVM is : {}".format(minT))
         return res.min()
 
-    # def kernel(X1, X2, type, gamma, d, c, K):
-    #     if (type == "RBF"):
-    #         # Dist = np.linalg.norm(x1 - x2) ** 2
-    #         Dist = util.vcol((X1 ** 2).sum(0)) + util.vrow((X2 ** 2).sum(0)) - 2 * np.dot(X1.T, X2)
-    #
-    #         kernel = np.exp(-gamma * Dist) + K ** 0.5
-    #     else:  # polynomial
-    #         kernel = (np.dot(X1.T, X2) + c) ** d + K ** 0.5
-    #     return kernel
     def train_nolinear(self, type):  # 非线性 使用 核函数
         # DTREXT = np.vstack([DTR, np.ones((1, DTR.shape[1])) * K])
         Z = np.zeros(self.LTR.shape)
@@ -121,8 +111,9 @@ class SVM:
         D2 = self.DTR
         if type == util.svm_kernel_type.rbf:
             Dist = util.vcol((D1**2).sum(0)) + util.vrow((D2**2).sum(0)) - 2*np.dot(D1.T,D2)
-            # kernel = np.exp(-np.exp(self.parameter["loggamma"])* Dist) + self.parameter['K'] ** 0.5
-            kernel = np.exp(-self.parameter["loggamma"] * Dist) + self.parameter['K'] ** 0.5
+            #gamma not loggamma
+            kernel = np.exp(-np.exp(self.parameter["loggamma"])* Dist) + self.parameter['K'] ** 0.5
+            #kernel = np.exp(-self.parameter["loggamma"] * Dist) + self.parameter['K'] ** 0.5
 
         else: # polynomial
             kernel = (np.dot(D1.T, D2) + self.parameter["c"]) ** self.parameter["d"] + self.parameter["K"] ** 0.5
@@ -151,8 +142,10 @@ class SVM:
     def score_nolinear(self, alphaStar, type):
         if type == util.svm_kernel_type.rbf:
             Dist = util.vcol((self.DVAL ** 2).sum(0)) + util.vrow((self.DTR ** 2).sum(0)) - 2 * np.dot(self.DVAL.T, self.DTR)
-            #kernel = np.exp(-self.parameter["gamma"] * Dist) + self.parameter['K'] ** 0.5
-            kernel = np.exp(-self.parameter["loggamma"]* Dist) + self.parameter['K'] ** 0.5
+            # gamma not loggamma
+            kernel = np.exp(-self.parameter["loggamma"] * Dist) + self.parameter['K'] ** 0.5
+
+            #kernel = np.exp(-self.parameter["loggamma"]* Dist) + self.parameter['K'] ** 0.5
 
         else: # polynomial
             # pdb.set_trace()

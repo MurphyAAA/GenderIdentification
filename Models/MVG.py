@@ -48,7 +48,7 @@ class MVG:
         if tied:
             print("enter ties train")
             self.sigma.append((np.dot(DTRc0, DTRc0.T) + np.dot(DTRc1, DTRc1.T)) / self.DTR.shape[1])
-        elif bayes:
+        if bayes:
             print("enter bayes train")
            ## C = (np.dot(DTRc0, DTRc0.T) + np.dot(DTRc1, DTRc1.T)) / self.DTR.shape[1]
             self.sigma.append(np.dot(DTRc0, DTRc0.T) / DTRc0.shape[1])
@@ -57,7 +57,7 @@ class MVG:
             self.sigma[0] = self.sigma[0] * identity
             self.sigma[1] = self.sigma[1] * identity
             # self.sigma.append(C)
-        else:
+        if tied == False and bayes == False:
 
             self.sigma.append(np.dot(DTRc0, DTRc0.T) / DTRc0.shape[1])
             self.sigma.append(np.dot(DTRc1, DTRc1.T) / DTRc1.shape[1])
