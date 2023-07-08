@@ -326,7 +326,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
 
     if modelName == "SVM":
         for C in hyperParList["C"]:
-            model, minDCF = KFold("SVM", K, D, L, piTilde, {"C":C, "K":0, "loggamma":1, "d":2, "c":1})
+            model, minDCF = KFold("SVM", K, D, L, piTilde, {"C":C, "K":0, "loggamma": hyperParList["loggamma"], "d":2, "c":1})
             y.append(minDCF)
             print("C = {}:  minDCF:{} ".format(C, minDCF))
             if minDCF < bestminDCF:
@@ -375,20 +375,22 @@ def main():
 
 
     #Model choosen list=["MVG","LR","SVM","GMM"]
-    model = "GMM"
+    model = "LR"
     if model == "MVG":
         model,minDCF= KFold("MVG", 5, D, L,0.5,None)
         print("MVG : bestminDCF:{} ".format(minDCF))
     elif model == "LR":
         hyperParListLR = {"lam": [10 ** -6, 10 ** -5, 10 ** -4, 10 ** -3, 10 ** -2, 10 ** -1, 1, 10]}
-        hy,model,minDCF= KFoldHyper("LR", hyperParListLR, 5, D, L,0.5)
+        hy,model,minDCF= KFoldHyper("LR", hyperParListLR, 5, D_Znorm, L,0.5)
         print("Logic regression : with hyper_paramter lambda = {}  bestminDCF:{}   ".format(hy["lam"],  minDCF))
     elif model == "GMM":
         hyperParListGMM = {"n0": [0,1,2,3], "n1": [0,1,2,3]}
         hy, model, minDCF = KFoldHyper("GMM", hyperParListGMM, 5, D_Znorm, L, 0.5)
         print("GMM : with hyperparamter n0 ={}, n1={}, bestminDCF:{}  ".format(hy["n0"], hy["n1"], minDCF))
     elif model == "SVM":
-        hyperParListSVM = {"C":[ 2 * 10 ** -5, 5 * 10 ** -5, 10 ** -4, 2 * 10 ** -4, 5 * 10 ** -4, 10 ** -3, 2 * 10 ** -3, 5 * 10 ** -3, 10**-2],"K":0, "loggamma":1,"d":2,"c":1}
+        #hyperParListSVM = {"C":[ 2 * 10 ** -5, 5 * 10 ** -5, 10 ** -4, 2 * 10 ** -4, 5 * 10 ** -4, 10 ** -3, 2 * 10 ** -3, 5 * 10 ** -3, 10**-2],"K":0, "loggamma":1,"d":2,"c":1}
+        hyperParListSVM = {
+            "C": [ 2 * 10 ** -5, 10 ** -2], "K": 0, "loggamma": -5, "d": 2, "c": 1}
         hy, model, minDCF = KFoldHyper("SVM", hyperParListSVM, 5, D, L, 0.5)
         print("SVM : bestminDCF:{} ".format(minDCF))
     else:

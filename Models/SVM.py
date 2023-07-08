@@ -8,7 +8,7 @@ class SVM:
     def __init__(self, DTR, LTR, DVAL, LVAL,hyperParam):
         self.mu = []
         self.sigma = []
-        self.parameter = hyperParam # { "C":1, "K":0, "gamma":1, "d":2, "c":0}
+        self.parameter = hyperParam # { "C":1, "K":0, "loggamma":1, "d":2, "c":0}
         self.predictList = []
         self.DTR = DTR
         self.LTR = LTR
@@ -99,19 +99,11 @@ class SVM:
         Z = np.zeros(self.LTR.shape)
         Z[self.LTR == 1] = 1
         Z[self.LTR == 0] = -1
-
-        # H = np.dot(DTREXT.T, DTREXT)
-        # Dist = np.zeros((self.DTR.shape[1], self.DTR.shape[1]))
-        # for i in range(self.DTR.shape[1]):
-        #     for j in range(self.DTR.shape[1]):
-        #         xi = self.DTR[:, i]
-        #         xj = self.DTR[:, j]
-        #         Dist[i, j] = np.linalg.norm(xi - xj) ** 2
         D1 = self.DTR
         D2 = self.DTR
         if type == util.svm_kernel_type.rbf:
             Dist = util.vcol((D1**2).sum(0)) + util.vrow((D2**2).sum(0)) - 2*np.dot(D1.T,D2)
-            #gamma not loggamma
+
             kernel = np.exp(-np.exp(self.parameter["loggamma"])* Dist) + self.parameter['K'] ** 0.5
             #kernel = np.exp(-self.parameter["loggamma"] * Dist) + self.parameter['K'] ** 0.5
 
@@ -143,9 +135,9 @@ class SVM:
         if type == util.svm_kernel_type.rbf:
             Dist = util.vcol((self.DVAL ** 2).sum(0)) + util.vrow((self.DTR ** 2).sum(0)) - 2 * np.dot(self.DVAL.T, self.DTR)
             # gamma not loggamma
-            kernel = np.exp(-self.parameter["loggamma"] * Dist) + self.parameter['K'] ** 0.5
+            #kernel = np.exp(-self.parameter["loggamma"] * Dist) + self.parameter['K'] ** 0.5
 
-            #kernel = np.exp(-self.parameter["loggamma"]* Dist) + self.parameter['K'] ** 0.5
+            kernel = np.exp(-np.exp(self.parameter["loggamma"])* Dist) + self.parameter['K'] ** 0.5
 
         else: # polynomial
             # pdb.set_trace()

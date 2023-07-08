@@ -107,12 +107,12 @@ We start analyzing the linear classifier without PCA
 |:------:|:--------------------------------:|
 | 1e-06  |              0.118               |
 | 1e-05  |              0.118               | 
-| 0.0001 |              0.117               | 
-| 0.001  |              0.124               |
-|  0.01  |              0.127               | 
-|  0.1   |              0.126               |
-|   1    |              0.337               | 
-|   10   |              0.460               | 
+| 0.0001 |              0.118               | 
+| 0.001  |            **0.118**             |
+|  0.01  |              0.118               | 
+|  0.1   |              0.118               |
+|   1    |              0.133               | 
+|   10   |              0.219               | 
 
 ![](images/Linear_LR.jpg)
 It is surprise that the performance is not quite worse since minDCF can reach 0.118, it is better than MVG model
@@ -134,7 +134,7 @@ We move to SVM model, we try linear SVM firstly
 | 1e-05 |                1                 | 
 | 1e-04 |              0.137               | 
 | 0.001 |              0.120               |
-| 0.01  |              0.115               | 
+| 0.01  |            **0.115**             | 
 |  0.1  |              0.115               |
 |   1   |              0.115               | 
 |  10   |              0.115               | 
@@ -152,20 +152,18 @@ For Poly kernel
 | 1e-04 |              0.119               | 
 | 0.001 |              0.131               |
 | 0.01  |              0.127               | 
-|  0.1  |              0.115               |
+|  0.1  |            **0.115**             |
 |   1   |              0.119               | 
 
 For RBF
 1  logGAMMA= -3  k=0
 
-|   C   | minDCF( $\widetilde{\pi}$ = 0.5) |
-|:-----:|:--------------------------------:|
-| 1e-05 |                1                 | 
-| 1e-04 |              0.199               | 
-| 0.001 |              0.131               |
-| 0.01  |              0.127               | 
-|  0.1  |              0.115               |
-|   1   |              0.119               | 
+| log$\gamma$ | minDCF( $\widetilde{\pi}$ = 0.5) |
+|:-----------:|:--------------------------------:|
+|     -3      |               0.2                | 
+|     -4      |              0.228               | 
+|     -5      |              0.306               |
+ 
 
 ## Gaussian Mixture Models
 We assume male and female training data both have different components [1,2,4,8,16]. we tried different combination. Because a dimension reduction doesn't bring a good result. we will only try original data
@@ -193,10 +191,13 @@ And from the above graph, we notice that the candidate components number would b
 | 4(T)   | 8(FC)    |              0.078               |
 | 4(T)   | 8(T)     |              0.073               |
 | 4(FC)  | 4(FC)    |            **0.072**             |
+| 3(T)   | 4(T)     |              0.071               |
 
-It can be seen that if male anne female are both divided into 4 components, with Tied model can show a rather better solution. It means the feature in our dataset are both have the similar distribution, rather, the diagonal represent worse result means features are dependent with each other which is also align with the heatmap
+It can be seen that if male and female data are both divided into 4 components, with Tied model . the minDCF is lowest which is a rather better solution. 
+Tied model has this outstanding solution means all the features in our dataset have a similar distribution. On the other side, if diagonal applied, it represents worse result . It means features may depend on each other which is also align with out analysis in heatmap.
+Finally, we apply the Znorm on the data and implement on our best model: 4(T) for male and female, we get the minDCF which shows a little improved(0.067) 
 
-Finally, we selected 4(T) -4(T) as our best model in GMM
+Finally, we selected 4(T) -4(T) as our best model in GMM and data applied will be Znorm
 
 ## Calibration and fusion
 We use the DET plot to compare the best models that we collect from now.
