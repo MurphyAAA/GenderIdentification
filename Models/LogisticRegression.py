@@ -2,6 +2,8 @@ import numpy as np
 import scipy
 import pdb
 
+import util
+
 
 class LR:
     def __init__(self, DTR, LTR, DVAL, LVAL,  hyperPar):
@@ -16,17 +18,11 @@ class LR:
 
         self.lam = hyperPar
 
-    def mrow(self, v):
-        return v.reshape((1, v.size))
-
-    def mcol(self, v):
-        return v.reshape((v.size, 1))  # 变成列向量
-
     def logreg_object(self, v):  # loss function
         self.w = v[0:-1]
         self.b = v[-1]
         w_norm = np.linalg.norm(self.w)
-        self.w = self.mcol(self.w)
+        self.w = util.vcol(self.w)
         reg_term = (self.lam / 2) * (w_norm ** 2)
         negz = -1 * (2 * self.LTR - 1)
         fx = np.dot(self.w.T, self.DTR) + self.b
@@ -43,7 +39,6 @@ class LR:
                                                approx_grad=True)
         self.w = x[0:-1]
         self.b = x[-1]
-        # w = mcol(w)
         self.parameter = [{"w": self.w, "b": self.b}]
 
     # def bayes_decision_threshold(self, pi1, Cfn, Cfp):
@@ -54,7 +49,7 @@ class LR:
 
     ## output llr
     def score(self):
-        s = np.dot(self.mrow(self.w), self.DVAL) + self.b
+        s = np.dot(util.vrow(self.w), self.DVAL) + self.b
         s = s.reshape(s.size, )
         # print("s is : {}".format(s))
         return s

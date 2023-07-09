@@ -1,3 +1,5 @@
+import pdb
+
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.linalg
@@ -160,7 +162,7 @@ def LDA(D, L, m):
 ## K: int
 ## D: 12*2400
 ## L : array([1,0,0,0...]) 2400
-def KFold(modelName, K, D, L, piTilde, hyperPar):
+def KFold(modelName, K, D, L, piTilde, hyperPar,fusion):
     ## D0: 12 * 720
     D0 = D[:, L == 0]
     L0 = L[L == 0]
@@ -205,7 +207,7 @@ def KFold(modelName, K, D, L, piTilde, hyperPar):
 
         if modelName == "MVG":
             model = MVG.MVG(DTR, LTR, DVAL, LVAL)
-            model.train(tied = False, bayes = True)
+            model.train(tied = True, bayes = True)
             score.append(model.score())
             label.append(LVAL)
             ##model.estimate(llr)
@@ -236,9 +238,12 @@ def KFold(modelName, K, D, L, piTilde, hyperPar):
             label.append(LVAL)
     # print("piT is {}".format(piT))
     # print(f'score[0]={score[0].mean()}')
-
-    minDCF = model.minDcf(score, label, piTilde)
-    return model, minDCF
+    if fusion:
+        minDCF, FNR, FPR = model.minDcf(score, label, piTilde, fusion)
+        return model, minDCF, FNR, FPR
+    else:
+        minDCF = model.minDcf(score, label, piTilde,fusion)
+        return model, minDCF
 
 
 def split_data(D, L, seed=0):
@@ -304,7 +309,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
         x = hyperParList["lam"]
         for i in hyperParList["lam"]:
             hyperPar = {"lam": i}
-            model, minDCF = KFold("LR", K, D, L, piTilde, hyperPar)
+            model, minDCF = KFold("LR", K, D, L, piTilde, hyperPar,False)
             y.append(minDCF)
             print("lambda = {}:  minDCF:{} ".format(i, minDCF))
             if minDCF < bestminDCF:
@@ -316,7 +321,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
             y.clear()
             for n1 in hyperParList["n1"]:
                 hyperPar = {'n0': n0, 'n1': n1}
-                model, minDCF = KFold("GMM", K, D, L, piTilde, hyperPar)
+                model, minDCF = KFold("GMM", K, D, L, piTilde, hyperPar,False)
                 y.append(minDCF)
                 print("n0 = {} n1={}:  minDCF:{} ".format(n0, n1, minDCF))
                 if minDCF < bestminDCF:
@@ -326,7 +331,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
 
     if modelName == "SVM":
         for C in hyperParList["C"]:
-            model, minDCF = KFold("SVM", K, D, L, piTilde, {"C":C, "K":0, "loggamma": hyperParList["loggamma"], "d":2, "c":1})
+            model, minDCF = KFold("SVM", K, D, L, piTilde, {"C":C, "K":0, "loggamma": hyperParList["loggamma"], "d":2, "c":1},False)
             y.append(minDCF)
             print("C = {}:  minDCF:{} ".format(C, minDCF))
             if minDCF < bestminDCF:
@@ -355,8 +360,29 @@ def ConfusionMatrix(predictList, L):
         CM[predictList[i], L[i]] += 1
     return CM
 
+def fusion(D, Dz, L, piT):
+    plt.title('DET')
+    # GMM 正类：4个高斯+Tied  负类：4个高斯+Tied
+    hyperPar = {'n0': 2, 'n1': 2}
+    _, _,FNR, FPR = KFold("GMM", 5, Dz, L, piT, hyperPar,True)
+    plt.plot(FPR, FNR, color='red', label='GMM')
+    #MVG Tied Daigonal non-Znorm
+    _, _,FNR, FPR = KFold("MVG", 5, D, L, piT, None, True)
 
-def main():
+    plt.plot(FPR, FNR, color='green', label='MVG')
+    # plt.plot(x_axix, train_pn_dis, color='skyblue', label='PN distance')
+    # plt.plot(x_axix, thresholds, color='blue', label='threshold')
+    num_ticks = 5  # 刻度数量
+    plt.xscale('log')  # 设置横轴为对数尺度
+    plt.yscale('log')  # 设置纵轴为对数尺度
+    plt.grid(True)
+    plt.legend()  # 显示图例
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('False Negative Rate')
+    plt.show()
+
+
+def main(modelName):
     # D [ x0, x1, x2, x3, ...]  xi是列向量，每行都是一个feature
     D, L = load('./data/Train.txt')
     ## plot_hist(D,L)
@@ -369,33 +395,37 @@ def main():
     #corrlationAnalysis(D)
 
     # Dimensionality reduction
-    left_dim = 9
-    #D = PCA(D, L, left_dim)
+    left_dim = 12 # 12 ,11, 10, 9, 8
+    Dz = PCA(D_Znorm, L, left_dim)
+    D = PCA(D, L, left_dim)
     # D = LDA(D_Znorm, L, 1)
 
 
     #Model choosen list=["MVG","LR","SVM","GMM"]
-    model = "LR"
-    if model == "MVG":
-        model,minDCF= KFold("MVG", 5, D, L,0.5,None)
-        print("MVG : bestminDCF:{} ".format(minDCF))
-    elif model == "LR":
-        hyperParListLR = {"lam": [10 ** -6, 10 ** -5, 10 ** -4, 10 ** -3, 10 ** -2, 10 ** -1, 1, 10]}
-        hy,model,minDCF= KFoldHyper("LR", hyperParListLR, 5, D_Znorm, L,0.5)
-        print("Logic regression : with hyper_paramter lambda = {}  bestminDCF:{}   ".format(hy["lam"],  minDCF))
-    elif model == "GMM":
-        hyperParListGMM = {"n0": [0,1,2,3], "n1": [0,1,2,3]}
-        hy, model, minDCF = KFoldHyper("GMM", hyperParListGMM, 5, D_Znorm, L, 0.5)
-        print("GMM : with hyperparamter n0 ={}, n1={}, bestminDCF:{}  ".format(hy["n0"], hy["n1"], minDCF))
-    elif model == "SVM":
-        #hyperParListSVM = {"C":[ 2 * 10 ** -5, 5 * 10 ** -5, 10 ** -4, 2 * 10 ** -4, 5 * 10 ** -4, 10 ** -3, 2 * 10 ** -3, 5 * 10 ** -3, 10**-2],"K":0, "loggamma":1,"d":2,"c":1}
-        hyperParListSVM = {
-            "C": [ 2 * 10 ** -5, 10 ** -2], "K": 0, "loggamma": -5, "d": 2, "c": 1}
-        hy, model, minDCF = KFoldHyper("SVM", hyperParListSVM, 5, D, L, 0.5)
-        print("SVM : bestminDCF:{} ".format(minDCF))
-    else:
-        print("no corresponding model")
+    fusion(D,Dz,L,0.5)
+    model = modelName
+    # if model == "MVG":
+    #     model,minDCF= KFold("MVG", 5, D, L,0.5,None)
+    #     print("MVG : bestminDCF:{} ".format(minDCF))
+    # elif model == "LR":
+    #     hyperParListLR = {"lam": [10 ** -6, 10 ** -5, 10 ** -4, 10 ** -3, 10 ** -2, 10 ** -1, 1, 10]}
+    #     hy,model,minDCF= KFoldHyper("LR", hyperParListLR, 5, D_Znorm, L,0.5)
+    #     print("Logic regression : with hyper_paramter lambda = {}  bestminDCF:{}   ".format(hy["lam"],  minDCF))
+    # elif model == "GMM":
+    #     hyperParListGMM = {"n0": [0,1,2,3], "n1": [0,1,2,3]}
+    #     hy, model, minDCF = KFoldHyper("GMM", hyperParListGMM, 5, D_Znorm, L, 0.5)
+    #     print("GMM : with hyperparamter n0 ={}, n1={}, bestminDCF:{}  ".format(hy["n0"], hy["n1"], minDCF))
+    # elif model == "SVM":
+    #     #hyperParListSVM = {"C":[ 2 * 10 ** -5, 5 * 10 ** -5, 10 ** -4, 2 * 10 ** -4, 5 * 10 ** -4, 10 ** -3, 2 * 10 ** -3, 5 * 10 ** -3, 10**-2],"K":0, "loggamma":1,"d":2,"c":1}
+    #     hyperParListSVM = {
+    #         "C": [ 2 * 10 ** -5, 10 ** -2], "K": 0, "loggamma": -5, "d": 2, "c": 1}
+    #     hy, model, minDCF = KFoldHyper("SVM", hyperParListSVM, 5, D, L, 0.5)
+    #     print("SVM : bestminDCF:{} ".format(minDCF))
+    # else:
+    #     print("no corresponding model")
+
+
 
 
 if __name__ == '__main__':
-    main()
+    main("MVG")

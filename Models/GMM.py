@@ -2,6 +2,8 @@ import numpy as np
 import scipy
 import pdb
 
+import util
+
 
 class GMM:
     def __init__(self, DTR, LTR, DVAL, LVAL, hyperPar):
@@ -16,11 +18,11 @@ class GMM:
         self.n0 = hyperPar["n0"]
         self.n1 = hyperPar["n1"]
 
-    def vrow(self, v):
-        return v.reshape((1, v.size))
-
-    def vcol(self, v):
-        return v.reshape((v.size, 1))  # 变成列向量
+    # def vrow(self, v):
+    #     return v.reshape((1, v.size))
+    #
+    # def vcol(self, v):
+    #     return v.reshape((v.size, 1))  # 变成列向量
 
     def logpdf_GAU_ND(self,x, mu, C):  # mu，c都是某一个类别的样本的平均值和协方差矩阵
         M = x.shape[0]  # M 是特征数
@@ -47,8 +49,8 @@ class GMM:
             d = U[:, 0:1] * s[0] ** 0.5 * alpha
             # pdb.set_trace()
             # GMM_iteration(X,)
-            GMM_new.append((w / 2.0, self.vcol(mu) + d, C))
-            GMM_new.append((w / 2.0, self.vcol(mu) - d, C))
+            GMM_new.append((w / 2.0, util.vcol(mu) + d, C))
+            GMM_new.append((w / 2.0, util.vcol(mu) - d, C))
         GMM_new_gen = self.GMM_iteration(X, GMM_new, diagCov, tiedCov, psi)
         if iterNum == 1:
             return GMM_new_gen
@@ -58,7 +60,7 @@ class GMM:
     def constraintCov(self,C, psi):
         U, s, _ = np.linalg.svd(C)
         s[s < psi] = psi
-        covNew = np.dot(U, self.vcol(s) * U.T)
+        covNew = np.dot(U, util.vcol(s) * U.T)
         return covNew
 
     def GMM_iteration(self,X, gmm, diagCov, tiedCov, psi):  # 传入的gmm是初始值，训练过程中更新
@@ -70,7 +72,7 @@ class GMM:
             lLL = []
             for (w, mu, C) in gmm:
                 ll = self.logpdf_GAU_ND(X, mu, C) + np.log(w)
-                lLL.append(self.vrow(ll))
+                lLL.append(util.vrow(ll))
                 # print(i)
             LL = np.vstack(lLL)
             margin = scipy.special.logsumexp(LL, axis=0)  # 将log(w*N(x,mu,c)) 加起来，即log(∑w*N())
@@ -82,7 +84,7 @@ class GMM:
             gmmUpd = []
             for g in range(post.shape[0]):
                 Z = post[g].sum()
-                F = self.vcol((post[g:g + 1, :] * X).sum(1))
+                F = util.vcol((post[g:g + 1, :] * X).sum(1))
                 S = np.dot((post[g:g + 1, :] * X), X.T)
 
                 wUpd = Z / X.shape[1]
@@ -104,7 +106,7 @@ class GMM:
             lLL = []
             for (w, mu, C) in gmm:
                 ll = self.logpdf_GAU_ND(X, mu, C) + np.log(w)
-                lLL.append(self.vrow(ll))
+                lLL.append(util.vrow(ll))
             LL = np.vstack(lLL)
             margin_new = scipy.special.logsumexp(LL, axis=0)
             #print(margin_new.sum())
@@ -123,8 +125,8 @@ class GMM:
         DTR0 = self.DTR[:, self.LTR == 0]  # 0类的所有Data
         DTR1 = self.DTR[:, self.LTR == 1]  # 1类的所有Data
 
-        self.mu.append(self.vcol(DTR0.mean(1)))
-        self.mu.append(self.vcol(DTR1.mean(1)))
+        self.mu.append(util.vcol(DTR0.mean(1)))
+        self.mu.append(util.vcol(DTR1.mean(1)))
         # 去中心化
         DTRc0 = DTR0 - self.mu[0]
         DTRc1 = DTR1 - self.mu[1]
@@ -134,8 +136,8 @@ class GMM:
         self.sigma.append(np.dot(DTRc1, DTRc1.T) / DTRc1.shape[1])
         GMM0_init = [(1, self.mu[0], self.sigma[0])]
         GMM1_init = [(1, self.mu[1], self.sigma[1])]
-        gmm_gen0 = self.LBG(GMM0_init, alpha=0.1, iterNum=self.n0, X=DTR0, diagCov=False, tiedCov=False, psi=0.01)
-        gmm_gen1 = self.LBG(GMM1_init, alpha=0.1, iterNum=self.n1, X=DTR1, diagCov=False, tiedCov=False, psi=0.01)
+        gmm_gen0 = self.LBG(GMM0_init, alpha=0.1, iterNum=self.n0, X=DTR0, diagCov=False, tiedCov=True, psi=0.01)
+        gmm_gen1 = self.LBG(GMM1_init, alpha=0.1, iterNum=self.n1, X=DTR1, diagCov=False, tiedCov=True, psi=0.01)
         self.parameter = {"gmm0": gmm_gen0, "gmm1": gmm_gen1}
 
     def bayes_decision_threshold(self, pi1, Cfn, Cfp):
@@ -148,7 +150,7 @@ class GMM:
         yList = []
         for w, mu, C in gmm:
             lc = self.logpdf_GAU_ND(X, mu, C) + np.log(w)
-            yList.append(self.vrow(lc))
+            yList.append(util.vrow(lc))
         return scipy.special.logsumexp(yList, axis=0)
 
     ## output llr
@@ -163,7 +165,7 @@ class GMM:
 
 
     # use effective_prior
-    def minDcf(self, score, label, epiT):
+    def minDcf(self, score, label, epiT, fusion):
         score = np.array(score).flatten()
         label = np.array(label).flatten()
         scoreArray = score.copy()
@@ -171,6 +173,7 @@ class GMM:
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)
         TPR = np.zeros(scoreArray.size)
+        FNR = np.zeros(scoreArray.size)
         res = np.zeros(scoreArray.size)
         minDCF = 300
         minT = 2
@@ -183,19 +186,23 @@ class GMM:
                     Conf[i, j] = ((Pred == i) * (label == j)).sum()
                     TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
                     FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
+                    # FNR,FPR
+                    FNR[idx] = 1-TPR[idx]
 
             # res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
             res[idx] = epiT * (1 - TPR[idx]) + (1 - epiT) * FPR[idx]
             sysRisk = min(epiT, (1 - epiT))
             res[idx] = res[idx] / sysRisk  # 除 risk of an optimal system
 
-            if res[idx] < minDCF:
-                minT = t
-                minDCF = res[idx]
+            # if res[idx] < minDCF:
+            #     minT = t
+            #     minDCF = res[idx]
 
-        #print("minDCF in GMM is : {}".format(minDCF))
-
-        return res.min()
+        print("minDCF in GMM is : {}".format(minDCF))
+        if fusion:
+            return res.min(), FNR, FPR
+        else:
+            return res.min()
 
     # use prior
     def minDcfPi(self, score, label, Cfn, Cfp, piT):

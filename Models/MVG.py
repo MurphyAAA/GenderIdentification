@@ -1,6 +1,8 @@
 import numpy as np
 import scipy
 
+import util
+
 
 class MVG:
     def __init__(self, DTR, LTR, DVAL, LVAL):
@@ -14,12 +16,6 @@ class MVG:
         self.LVAL = LVAL
         self.tied = False
         self.bayes = False
-
-    def vrow(self, v):
-        return v.reshape((1, v.size))
-
-    def mcol(self, v):
-        return v.reshape((v.size, 1))  # 变成列向量
 
     def _logpdf_GAU_ND_fast(self, X, mu, C):
         XC = X - mu
@@ -37,8 +33,8 @@ class MVG:
         DTR0 = self.DTR[:, self.LTR == 0]  # 0类的所有Data
         DTR1 = self.DTR[:, self.LTR == 1]  # 1类的所有Data
 
-        self.mu.append(self.mcol(DTR0.mean(1)))
-        self.mu.append(self.mcol(DTR1.mean(1)))
+        self.mu.append(util.vcol(DTR0.mean(1)))
+        self.mu.append(util.vcol(DTR1.mean(1)))
         # 去中心化
         DTRc0 = DTR0 - self.mu[0]
         DTRc1 = DTR1 - self.mu[1]
@@ -111,7 +107,7 @@ class MVG:
     #     return acc, err
 
     # use effective_prior
-    def minDcf(self, score, label, epiT):
+    def minDcf(self, score, label, epiT,fusion):
         score = np.array(score).flatten()
         label = np.array(label).flatten()
         scoreArray = score.copy()
@@ -119,6 +115,7 @@ class MVG:
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)
         TPR = np.zeros(scoreArray.size)
+        FNR = np.zeros(scoreArray.size)
         res = np.zeros(scoreArray.size)
         minDCF = 300
         minT = 2
@@ -131,18 +128,22 @@ class MVG:
                     Conf[i, j] = ((Pred == i) * (label == j)).sum()
                     TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
                     FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
-
+                    # FNR,FPR
+                    FNR[idx] = 1 - TPR[idx]
             # res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
             res[idx] = epiT * (1 - TPR[idx]) + (1 - epiT) * FPR[idx]
             sysRisk = min(epiT, (1 - epiT))
             res[idx] = res[idx] / sysRisk  # 除 risk of an optimal system
 
-            if res[idx] < minDCF:
-                minT = t
-                minDCF = res[idx]
+            # if res[idx] < minDCF:
+            #     minT = t
+            #     minDCF = res[idx]
 
         print("minDCF in MVG is : {}".format(minDCF))
-        return res.min()
+        if fusion:
+            return res.min(), FNR, FPR
+        else:
+            return res.min()
 
     # use prior
     def minDcfPi(self, score, label, Cfn, Cfp, piT):
