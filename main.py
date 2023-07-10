@@ -222,14 +222,16 @@ def KFold(modelName, K, D, L, piTilde, hyperPar,fusion):
             # Cfn = 1
             # Cfp = ((piT * Cfn) / 0.99 - (piT) * Cfn) / (1 - piT)
             # minDCF = model.minDcf(score, label,piTilde)
-        elif modelName == "SVM":
+        elif modelName == "SVM_Linear":
             model = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar) # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
-            #wStar = model.train_linear()
-            #hyper C=1 gamma=1 K=0
-            alphaStar = model.train_nolinear(util.svm_kernel_type.rbf)
-            # print(alphaStar)
-            #score.append(model.score(wStar))
-            score.append(model.score_nolinear(alphaStar,util.svm_kernel_type.rbf))
+            wStar = model.train_linear()
+            score.append(model.score(wStar))
+            label.append(LVAL)
+        elif modelName == "SVM_nonlinear":
+            model = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar)  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
+            # hyper C=1 gamma=1 K=0
+            alphaStar = model.train_nonlinear(util.svm_kernel_type.poly)
+            score.append(model.score_nonlinear(alphaStar,util.svm_kernel_type.poly))
             label.append(LVAL)
         elif modelName == "GMM":
             model = GMM.GMM(DTR, LTR, DVAL, LVAL, hyperPar)
@@ -316,7 +318,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
                 bestminDCF = minDCF
                 bestHyper = {"lam": i}
 
-    if modelName == "GMM":
+    elif modelName == "GMM":
         for n0 in hyperParList["n0"]:
             y.clear()
             for n1 in hyperParList["n1"]:
@@ -329,15 +331,22 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
                     bestHyper = {'n0': n0, 'n1': n1}
             w0y.append(y)
 
-    if modelName == "SVM":
+    elif modelName == "SVM_Linear":
         for C in hyperParList["C"]:
-            model, minDCF = KFold("SVM", K, D, L, piTilde, {"C":C, "K":0, "loggamma": hyperParList["loggamma"], "d":2, "c":1},False)
+            model, minDCF = KFold("SVM_Linear", K, D, L, piTilde, {"C":C},False)
             y.append(minDCF)
             print("C = {}:  minDCF:{} ".format(C, minDCF))
             if minDCF < bestminDCF:
                 bestminDCF = minDCF
                 bestHyper = {"C": C}
-
+    elif modelName == "SVM_nonlinear":
+        for C in hyperParList["C"]:
+            model, minDCF = KFold("SVM_nonlinear", K, D, L, piTilde, {"C":C, "K":0, "loggamma": hyperParList["loggamma"], "d":2, "c":1},False)
+            y.append(minDCF)
+            print("C = {}:  minDCF:{} ".format(C, minDCF))
+            if minDCF < bestminDCF:
+                bestminDCF = minDCF
+                bestHyper = {"C": C}
 
 
     # plt.grid(True)
@@ -368,19 +377,29 @@ def fusion(D, Dz, L, piT):
     plt.plot(FPR, FNR, color='red', label='GMM')
     #MVG Tied Daigonal non-Znorm
     _, _,FNR, FPR = KFold("MVG", 5, D, L, piT, None, True)
-
     plt.plot(FPR, FNR, color='green', label='MVG')
-    # plt.plot(x_axix, train_pn_dis, color='skyblue', label='PN distance')
-    # plt.plot(x_axix, thresholds, color='blue', label='threshold')
-    num_ticks = 5  # 刻度数量
+    # SVM - 线性：C=0.01 ,
+    C=0.01
+    _, _,FNR, FPR = KFold("SVM_Linear", 5, D, L, piT,{"C": C, "K": 0}, True)
+    plt.plot(FPR, FNR, color='skyblue', label='linear SVM')
+    # SVM - poly C=0.1
+    C = 0.1
+    hyperPar = {"K":0, "loggamma":1,"d":2,"c":1}
+    _, _,FNR, FPR = KFold("SVM_nonlinear", 5, D, L, piT,{"C": C, "K": hyperPar["K"], "loggamma": hyperPar["loggamma"], "d": 2, "c": 1}, True)
+    plt.plot(FPR, FNR, color='blue', label='non linear SVM')
+    # LR里lambda = 0.001
+    hyperPar = {"lam": 0.001}
+    _, _,FNR, FPR = KFold("LR", 5, D, L, piT, hyperPar, True)
+    plt.plot(FPR, FNR, color='black', label='LR')
+
     plt.xscale('log')  # 设置横轴为对数尺度
     plt.yscale('log')  # 设置纵轴为对数尺度
     plt.grid(True)
     plt.legend()  # 显示图例
     plt.xlabel('False Positive Rate')
     plt.ylabel('False Negative Rate')
+    plt.savefig('./images/DET_GMM_MVG_LSVM_NLSVM_LR.jpg')
     plt.show()
-
 
 def main(modelName):
     # D [ x0, x1, x2, x3, ...]  xi是列向量，每行都是一个feature

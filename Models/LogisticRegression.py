@@ -70,7 +70,7 @@ class LR:
     # def validation(self,DTE,LTE):
     #     ## confusionmatrix
     #     return
-    def minDcf(self, score, label,piTilde):
+    def minDcf(self, score, label,piTilde, fusion):
         score = np.array(score).flatten()
         # print(f'score={score.mean()}')
         # print(f'score={len(score)}')
@@ -81,6 +81,7 @@ class LR:
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)
         TPR = np.zeros(scoreArray.size)
+        FNR = np.zeros(scoreArray.size)
         res = np.zeros(scoreArray.size)
         minDCF = 300
         minT = 2
@@ -94,7 +95,8 @@ class LR:
                     Conf[i, j] = ((Pred == i) * (label == j)).sum()
                     TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
                     FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
-
+                    # FNR,FPR
+                    FNR[idx] = 1 - TPR[idx]
 
             #res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
             res[idx] = piTilde * (1 - TPR[idx]) + (1-piTilde) * FPR[idx]
@@ -104,22 +106,9 @@ class LR:
             if res[idx] < minDCF:
                 minT = t
                 minDCF = res[idx]
+            print("minDCF in LR is : {}".format(minDCF))
+        if fusion:
+            return minDCF, FNR, FPR
+        else:
+            return minDCF
 
-        # print(minDCF)
-        # print(minT)
-        return res.min()
-   #  def computeAccuracy(self):
-   #      res = []
-   #      for i, pre in enumerate(self.predictList):
-   #          if (pre == self.LVAL[i]):
-   #              res.append(True)  # 预测正确
-   #          else:
-   #              res.append(False)
-   #      corr = res.count(True)
-   #      wrong = res.count(False)
-   #      # print(f'\ncorrect number:{corr}\nwrong number:{wrong}\ntotal:{len(res)}')
-   #      acc = corr / len(res)
-   #      err = wrong / len(res)
-   #      return acc, err
-   #
-   #

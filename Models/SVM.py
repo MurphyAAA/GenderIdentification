@@ -59,7 +59,7 @@ class SVM:
         return res
 
 
-    def minDcf(self, score, label, epiT):
+    def minDcf(self, score, label, epiT,fusion):
         score = np.array(score).flatten()
         label = np.array(label).flatten()
         scoreArray = score.copy()
@@ -67,6 +67,7 @@ class SVM:
         scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
         FPR = np.zeros(scoreArray.size)
         TPR = np.zeros(scoreArray.size)
+        FNR = np.zeros(scoreArray.size)
         res = np.zeros(scoreArray.size)
         minDCF = 300
         minT = 2
@@ -80,7 +81,8 @@ class SVM:
                     Conf[i, j] = ((Pred == i) * (label == j)).sum()
                     TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
                     FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
-
+                    # FNR,FPR
+                    FNR[idx] = 1 - TPR[idx]
             # res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
             res[idx] = epiT * (1 - TPR[idx]) + (1 - epiT) * FPR[idx]
             sysRisk = min(epiT, (1 - epiT))
@@ -92,9 +94,12 @@ class SVM:
 
         print("minDCF with par {} in SVM is : {}".format(self.parameter["C"],minDCF))
         #print("minT in SVM is : {}".format(minT))
-        return res.min()
+        if fusion:
+            return minDCF, FNR, FPR
+        else:
+            return minDCF
 
-    def train_nolinear(self, type):  # 非线性 使用 核函数
+    def train_nonlinear(self, type):  # 非线性 使用 核函数
         # DTREXT = np.vstack([DTR, np.ones((1, DTR.shape[1])) * K])
         Z = np.zeros(self.LTR.shape)
         Z[self.LTR == 1] = 1
@@ -131,7 +136,7 @@ class SVM:
         # pdb.set_trace()
         print('Dual loss ', JDualv2(alphaStar)[0])
         return alphaStar
-    def score_nolinear(self, alphaStar, type):
+    def score_nonlinear(self, alphaStar, type):
         if type == util.svm_kernel_type.rbf:
             Dist = util.vcol((self.DVAL ** 2).sum(0)) + util.vrow((self.DTR ** 2).sum(0)) - 2 * np.dot(self.DVAL.T, self.DTR)
             # gamma not loggamma

@@ -135,15 +135,15 @@ class MVG:
             sysRisk = min(epiT, (1 - epiT))
             res[idx] = res[idx] / sysRisk  # 除 risk of an optimal system
 
-            # if res[idx] < minDCF:
-            #     minT = t
-            #     minDCF = res[idx]
+            if res[idx] < minDCF:
+                minT = t
+                minDCF = res[idx]
 
         print("minDCF in MVG is : {}".format(minDCF))
         if fusion:
-            return res.min(), FNR, FPR
+            return minDCF, FNR, FPR
         else:
-            return res.min()
+            return minDCF
 
     # use prior
     def minDcfPi(self, score, label, Cfn, Cfp, piT):
