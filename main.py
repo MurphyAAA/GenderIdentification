@@ -241,10 +241,12 @@ def KFold(modelName, K, D, L, piTilde, hyperPar,fusion):
     # print("piT is {}".format(piT))
     # print(f'score[0]={score[0].mean()}')
     if fusion:
-        minDCF, FNR, FPR = model.minDcf(score, label, piTilde, fusion)
+
+        # minDCF, FNR, FPR = model.minDcf(score, label, piTilde, fusion)
+        minDCF, FNR, FPR = util.minDcf(modelName, score, label, piTilde, fusion)
         return model, minDCF, FNR, FPR
     else:
-        minDCF = model.minDcf(score, label, piTilde,fusion)
+        minDCF = util.minDcf(score, label, piTilde,fusion)
         return model, minDCF
 
 

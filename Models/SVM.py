@@ -59,45 +59,45 @@ class SVM:
         return res
 
 
-    def minDcf(self, score, label, epiT,fusion):
-        score = np.array(score).flatten()
-        label = np.array(label).flatten()
-        scoreArray = score.copy()
-        scoreArray.sort()
-        scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
-        FPR = np.zeros(scoreArray.size)
-        TPR = np.zeros(scoreArray.size)
-        FNR = np.zeros(scoreArray.size)
-        res = np.zeros(scoreArray.size)
-        minDCF = 300
-        minT = 2
-
-        # {res[idx] : t}
-        for idx, t in enumerate(scoreArray):
-            Pred = np.int32(score > t)  # 强制类型转换为int32,True 变成1，False 变成0
-            Conf = np.zeros((2, 2))
-            for i in range(2):
-                for j in range(2):
-                    Conf[i, j] = ((Pred == i) * (label == j)).sum()
-                    TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
-                    FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
-                    # FNR,FPR
-                    FNR[idx] = 1 - TPR[idx]
-            # res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
-            res[idx] = epiT * (1 - TPR[idx]) + (1 - epiT) * FPR[idx]
-            sysRisk = min(epiT, (1 - epiT))
-            res[idx] = res[idx] / sysRisk  # 除 risk of an optimal system
-
-            if res[idx] < minDCF:
-                minT = t
-                minDCF = res[idx]
-
-        print("minDCF with par {} in SVM is : {}".format(self.parameter["C"],minDCF))
-        #print("minT in SVM is : {}".format(minT))
-        if fusion:
-            return minDCF, FNR, FPR
-        else:
-            return minDCF
+    # def minDcf(self, score, label, epiT,fusion):
+    #     score = np.array(score).flatten()
+    #     label = np.array(label).flatten()
+    #     scoreArray = score.copy()
+    #     scoreArray.sort()
+    #     scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
+    #     FPR = np.zeros(scoreArray.size)
+    #     TPR = np.zeros(scoreArray.size)
+    #     FNR = np.zeros(scoreArray.size)
+    #     res = np.zeros(scoreArray.size)
+    #     minDCF = 300
+    #     minT = 2
+    #
+    #     # {res[idx] : t}
+    #     for idx, t in enumerate(scoreArray):
+    #         Pred = np.int32(score > t)  # 强制类型转换为int32,True 变成1，False 变成0
+    #         Conf = np.zeros((2, 2))
+    #         for i in range(2):
+    #             for j in range(2):
+    #                 Conf[i, j] = ((Pred == i) * (label == j)).sum()
+    #                 TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
+    #                 FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
+    #                 # FNR,FPR
+    #                 FNR[idx] = 1 - TPR[idx]
+    #         # res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
+    #         res[idx] = epiT * (1 - TPR[idx]) + (1 - epiT) * FPR[idx]
+    #         sysRisk = min(epiT, (1 - epiT))
+    #         res[idx] = res[idx] / sysRisk  # 除 risk of an optimal system
+    #
+    #         if res[idx] < minDCF:
+    #             minT = t
+    #             minDCF = res[idx]
+    #
+    #     print("minDCF with par {} in SVM is : {}".format(self.parameter["C"],minDCF))
+    #     #print("minT in SVM is : {}".format(minT))
+    #     if fusion:
+    #         return minDCF, FNR, FPR
+    #     else:
+    #         return minDCF
 
     def train_nonlinear(self, type):  # 非线性 使用 核函数
         # DTREXT = np.vstack([DTR, np.ones((1, DTR.shape[1])) * K])

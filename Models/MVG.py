@@ -74,76 +74,45 @@ class MVG:
             tlogll1 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[1], self.sigma[1])
         return tlogll1 - tlogll0
 
-    ##get score and compare with threshold
-    ## output predictList np.array(1,0,0,1...)
-    # def estimate(self,llr):
-    #     Priori = 1 / 2
-    #     t = self.bayes_decision_threshold(Priori, 1, 1)
-    #     for r in llr:
-    #         if r > t:
-    #             self.predictList.append(1)
-    #         else:
-    #             self.predictList.append(0)
-
-    # def evaluation(self, DTE):
-    #     return
-    #
-    # def validation(self,DTE,LTE):
-    #     ## confusionmatrix
-    #     return
-
-    # def computeAccuracy(self):
-    #     res = []
-    #     for i, pre in enumerate(self.predictList):
-    #         if (pre == self.LVAL[i]):
-    #             res.append(True)  # 预测正确
-    #         else:
-    #             res.append(False)
-    #     corr = res.count(True)
-    #     wrong = res.count(False)
-    #     # print(f'\ncorrect number:{corr}\nwrong number:{wrong}\ntotal:{len(res)}')
-    #     acc = corr / len(res)
-    #     err = wrong / len(res)
-    #     return acc, err
 
     # use effective_prior
-    def minDcf(self, score, label, epiT,fusion):
-        score = np.array(score).flatten()
-        label = np.array(label).flatten()
-        scoreArray = score.copy()
-        scoreArray.sort()
-        scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
-        FPR = np.zeros(scoreArray.size)
-        TPR = np.zeros(scoreArray.size)
-        FNR = np.zeros(scoreArray.size)
-        res = np.zeros(scoreArray.size)
-        minDCF = 300
-        minT = 2
-        # {res[idx] : t}
-        for idx, t in enumerate(scoreArray):
-            Pred = np.int32(score > t)  # 强制类型转换为int32,True 变成1，False 变成0
-            Conf = np.zeros((2, 2))
-            for i in range(2):
-                for j in range(2):
-                    Conf[i, j] = ((Pred == i) * (label == j)).sum()
-                    TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
-                    FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
-                    # FNR,FPR
-                    FNR[idx] = 1 - TPR[idx]
-            # res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
-            res[idx] = epiT * (1 - TPR[idx]) + (1 - epiT) * FPR[idx]
-            sysRisk = min(epiT, (1 - epiT))
-            res[idx] = res[idx] / sysRisk  # 除 risk of an optimal system
-
-            if res[idx] < minDCF:
-                minT = t
-                minDCF = res[idx]
-
-        print("minDCF in MVG is : {}".format(minDCF))
-        if fusion:
-            return minDCF, FNR, FPR
-        else:
-            return minDCF
+    # def minDcf(self, score, label, epiT,fusion):
+    #     score = np.array(score).flatten()
+    #     label = np.array(label).flatten()
+    #     scoreArray = score.copy()
+    #     scoreArray.sort()
+    #     scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
+    #     FPR = np.zeros(scoreArray.size)
+    #     TPR = np.zeros(scoreArray.size)
+    #     FNR = np.zeros(scoreArray.size)
+    #     res = np.zeros(scoreArray.size)
+    #     minDCF = 300
+    #     minT = 2
+    #     # {res[idx] : t}
+    #     for idx, t in enumerate(scoreArray):
+    #         Pred = np.int32(score > t)  # 强制类型转换为int32,True 变成1，False 变成0
+    #         Conf = np.zeros((2, 2))
+    #         for i in range(2):
+    #             for j in range(2):
+    #                 Conf[i, j] = ((Pred == i) * (label == j)).sum()
+    #                 TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
+    #                 FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
+    #                 # FNR,FPR
+    #                 FNR[idx] = 1 - TPR[idx]
+    #         # res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
+    #         res[idx] = epiT * (1 - TPR[idx]) + (1 - epiT) * FPR[idx]
+    #         sysRisk = min(epiT, (1 - epiT))
+    #         res[idx] = res[idx] / sysRisk  # 除 risk of an optimal system
+    #
+    #         if res[idx] < minDCF:
+    #             minT = t
+    #             minDCF = res[idx]
+    #
+    #     print("minDCF in MVG is : {}".format(minDCF))
+    #     if fusion:
+    #         return minDCF, FNR, FPR
+    #     else:
+    #         return minDCF
 
     # use prior
     def minDcfPi(self, score, label, Cfn, Cfp, piT):

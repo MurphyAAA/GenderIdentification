@@ -54,61 +54,42 @@ class LR:
         # print("s is : {}".format(s))
         return s
 
-    ##get score and compare with threshold
-    ## output predictList np.array(1,0,0,1...)
-    # def estimate(self):
-    #     s = self.score()
-    #     for i in s:
-    #         if i > 0:
-    #             self.predictList.append(1)
-    #         else:
-    #             self.predictList.append(0)
 
-    # def evaluation(self, DTE):
-    #     return
+    # def minDcf(self, score, label,piTilde, fusion):
+    #     score = np.array(score).flatten()
+    #     label = np.array(label).flatten()
+    #     scoreArray = score.copy()
+    #     scoreArray.sort()
+    #     scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
+    #     FPR = np.zeros(scoreArray.size)
+    #     TPR = np.zeros(scoreArray.size)
+    #     FNR = np.zeros(scoreArray.size)
+    #     res = np.zeros(scoreArray.size)
+    #     minDCF = 300
+    #     minT = 2
+    #     #{res[idx] : t}
+    #     for idx, t in enumerate(scoreArray):
+    #         Pred = np.int32(score > t)  # 强制类型转换为int32,True 变成1，False 变成0
+    #         Conf = np.zeros((2, 2))
+    #         for i in range(2):
+    #             for j in range(2):
+    #                 Conf[i, j] = ((Pred == i) * (label == j)).sum()
+    #                 TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
+    #                 FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
+    #                 # FNR,FPR
+    #                 FNR[idx] = 1 - TPR[idx]
     #
-    # def validation(self,DTE,LTE):
-    #     ## confusionmatrix
-    #     return
-    def minDcf(self, score, label,piTilde, fusion):
-        score = np.array(score).flatten()
-        # print(f'score={score.mean()}')
-        # print(f'score={len(score)}')
-        label = np.array(label).flatten()
-        scoreArray = score.copy()
-        scoreArray.sort()
-
-        scoreArray = np.concatenate([np.array([-np.inf]), scoreArray, np.array([np.inf])])
-        FPR = np.zeros(scoreArray.size)
-        TPR = np.zeros(scoreArray.size)
-        FNR = np.zeros(scoreArray.size)
-        res = np.zeros(scoreArray.size)
-        minDCF = 300
-        minT = 2
-        #{res[idx] : t}
-        for idx, t in enumerate(scoreArray):
-            Pred = np.int32(score > t)  # 强制类型转换为int32,True 变成1，False 变成0
-
-            Conf = np.zeros((2, 2))
-            for i in range(2):
-                for j in range(2):
-                    Conf[i, j] = ((Pred == i) * (label == j)).sum()
-                    TPR[idx] = Conf[1, 1] / (Conf[1, 1] + Conf[0, 1]) if (Conf[1, 1] + Conf[0, 1]) != 0.0 else 0
-                    FPR[idx] = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
-                    # FNR,FPR
-                    FNR[idx] = 1 - TPR[idx]
-
-            #res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
-            res[idx] = piTilde * (1 - TPR[idx]) + (1-piTilde) * FPR[idx]
-            sysRisk = min(piTilde, 1 - piTilde)
-            res[idx] = res[idx] /sysRisk # 除 risk of an optimal system
-
-            if res[idx] < minDCF:
-                minT = t
-                minDCF = res[idx]
-            print("minDCF in LR is : {}".format(minDCF))
-        if fusion:
-            return minDCF, FNR, FPR
-        else:
-            return minDCF
+    #         #res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
+    #         res[idx] = piTilde * (1 - TPR[idx]) + (1-piTilde) * FPR[idx]
+    #         sysRisk = min(piTilde, 1 - piTilde)
+    #         res[idx] = res[idx] /sysRisk # 除 risk of an optimal system
+    #
+    #         if res[idx] < minDCF:
+    #             minT = t
+    #             minDCF = res[idx]
+    #         print("minDCF in LR is : {}".format(minDCF))
+    #     if fusion:
+    #         return minDCF, FNR, FPR
+    #     else:
+    #         return minDCF
 
