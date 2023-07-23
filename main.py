@@ -1,6 +1,7 @@
 import pdb
 
 import numpy as np
+from matplotlib import pylab
 import matplotlib.pyplot as plt
 import scipy.linalg
 from scipy import stats
@@ -242,12 +243,14 @@ def KFold(modelName, K, D, L, piTilde, hyperPar,fusion):
     # print(f'score[0]={score[0].mean()}')
     if fusion:
 
-        # minDCF, FNR, FPR = model.minDcf(score, label, piTilde, fusion)
-        minDCF, FNR, FPR = util.minDcf(modelName, score, label, piTilde, fusion)
-        return model, minDCF, FNR, FPR
+        # minDCF, FNR, FPR = util.minDcf(modelName, score, label, piTilde, fusion)
+        actDCF, FNR, FPR = util.normalizedDCF(modelName, score, label, piTilde, 1, 1, fusion)
+
+        return model, actDCF, FNR, FPR
     else:
-        minDCF = util.minDcf(score, label, piTilde,fusion)
-        return model, minDCF
+        minDCF = util.minDcf(modelName, score, label, piTilde,fusion)
+        actDCF = util.normalizedDCF(modelName, score, label, piTilde, 1, 1, fusion)
+        return model, actDCF, minDCF
 
 
 def split_data(D, L, seed=0):
@@ -373,23 +376,23 @@ def ConfusionMatrix(predictList, L):
 
 def fusion(D, Dz, L, piT):
     plt.title('DET')
-    # GMM 正类：4个高斯+Tied  负类：4个高斯+Tied
+    # -1- GMM 正类：4个高斯+Tied  负类：4个高斯+Tied
     hyperPar = {'n0': 2, 'n1': 2}
     _, _,FNR, FPR = KFold("GMM", 5, Dz, L, piT, hyperPar,True)
     plt.plot(FPR, FNR, color='red', label='GMM')
-    #MVG Tied Daigonal non-Znorm
+    # -2- MVG Tied Daigonal non-Znorm
     _, _,FNR, FPR = KFold("MVG", 5, D, L, piT, None, True)
     plt.plot(FPR, FNR, color='green', label='MVG')
-    # SVM - 线性：C=0.01 ,
+    # -3- SVM - 线性：C=0.01 ,
     C=0.01
     _, _,FNR, FPR = KFold("SVM_Linear", 5, D, L, piT,{"C": C, "K": 0}, True)
     plt.plot(FPR, FNR, color='skyblue', label='linear SVM')
-    # SVM - poly C=0.1
+    # -4- SVM - poly C=0.1
     C = 0.1
     hyperPar = {"K":0, "loggamma":1,"d":2,"c":1}
     _, _,FNR, FPR = KFold("SVM_nonlinear", 5, D, L, piT,{"C": C, "K": hyperPar["K"], "loggamma": hyperPar["loggamma"], "d": 2, "c": 1}, True)
     plt.plot(FPR, FNR, color='blue', label='non linear SVM')
-    # LR里lambda = 0.001
+    # -5- LR里lambda = 0.001
     hyperPar = {"lam": 0.001}
     _, _,FNR, FPR = KFold("LR", 5, D, L, piT, hyperPar, True)
     plt.plot(FPR, FNR, color='black', label='LR')
@@ -400,8 +403,77 @@ def fusion(D, Dz, L, piT):
     plt.legend()  # 显示图例
     plt.xlabel('False Positive Rate')
     plt.ylabel('False Negative Rate')
-    plt.savefig('./images/DET_GMM_MVG_LSVM_NLSVM_LR.jpg')
+    plt.savefig('./images/actual_DET_GMM_MVG_LSVM_NLSVM_LR.jpg')
     plt.show()
+
+
+def BayesErrorPlot(D, Dz, L):
+    plt.title('Bayes Error Plot')
+    effPriorLogOdds = np.linspace(-4, 4, 21)
+    # -1- GMM 正类：4个高斯+Tied  负类：4个高斯+Tied
+    hyperPar = {'n0': 2, 'n1': 2}
+    effP = np.zeros(effPriorLogOdds.size)
+    dcf = np.zeros(effPriorLogOdds.size)
+    mindcf = np.zeros(effPriorLogOdds.size)
+    for idx, p in enumerate(effPriorLogOdds):
+        effP[idx] = (1 + np.exp(-p)) ** (-1)
+        _, dcf[idx], mindcf[idx] = KFold("GMM", 5, Dz, L, effP[idx], hyperPar, False)
+
+    plt.plot(effPriorLogOdds, dcf,label='GMM DCF',color='r')
+    plt.plot(effPriorLogOdds, mindcf,label='GMM min DCF',color='r', linestyle="--" )
+##
+    # -2- MVG Tied Daigonal non-Znorm
+    effP = np.zeros(effPriorLogOdds.size)
+    dcf = np.zeros(effPriorLogOdds.size)
+    mindcf = np.zeros(effPriorLogOdds.size)
+    for idx, p in enumerate(effPriorLogOdds):
+        effP[idx] = (1 + np.exp(-p)) ** (-1)
+        _, dcf[idx], mindcf[idx] = KFold("MVG", 5, D, L, effP[idx], None, False)
+
+    plt.plot(effPriorLogOdds, dcf, label='MVG DCF', color='b')
+    plt.plot(effPriorLogOdds, mindcf, label='MVG min DCF', color='b', linestyle="--")
+
+    # -3- SVM - 线性：C=0.01 ,
+    C = 0.01
+    effP = np.zeros(effPriorLogOdds.size)
+    dcf = np.zeros(effPriorLogOdds.size)
+    mindcf = np.zeros(effPriorLogOdds.size)
+    for idx, p in enumerate(effPriorLogOdds):
+        effP[idx] = (1 + np.exp(-p)) ** (-1)
+        _, dcf[idx], mindcf[idx] = KFold("SVM_Linear", 5, D, L, effP[idx], {"C": C, "K": 0}, False)
+    plt.plot(effPriorLogOdds, dcf, label='SVM_Linear DCF', color='g')
+    plt.plot(effPriorLogOdds, mindcf, label='SVM_Linear min DCF', color='g', linestyle="--")
+    # -4- SVM - poly C=0.1
+    C = 0.1
+    hyperPar = {"K": 0, "loggamma": 1, "d": 2, "c": 1}
+    effP = np.zeros(effPriorLogOdds.size)
+    dcf = np.zeros(effPriorLogOdds.size)
+    mindcf = np.zeros(effPriorLogOdds.size)
+    for idx, p in enumerate(effPriorLogOdds):
+        effP[idx] = (1 + np.exp(-p)) ** (-1)
+        _, dcf[idx], mindcf[idx]  = KFold("SVM_nonlinear", 5, D, L, effP[idx],
+                               {"C": C, "K": hyperPar["K"], "loggamma": hyperPar["loggamma"], "d": 2, "c": 1}, False)
+    plt.plot(effPriorLogOdds, dcf, label='SVM_nonlinear DCF', color='y')
+    plt.plot(effPriorLogOdds, mindcf, label='SVM_nonlinear min DCF', color='y', linestyle="--")
+
+    # -5- LR里lambda = 0.001
+    hyperPar = {"lam": 0.001}
+
+    effP = np.zeros(effPriorLogOdds.size)
+    dcf = np.zeros(effPriorLogOdds.size)
+    mindcf = np.zeros(effPriorLogOdds.size)
+    for idx, p in enumerate(effPriorLogOdds):
+        effP[idx] = (1 + np.exp(-p)) ** (-1)
+        _, dcf[idx], mindcf[idx] = KFold("LR", 5, D, L, effP[idx], hyperPar, False)
+    plt.plot(effPriorLogOdds, dcf, label='LR DCF', color='c')
+    plt.plot(effPriorLogOdds, mindcf, label='LR min DCF', color='c', linestyle="--")
+
+    plt.grid(True)
+    plt.legend()  # 显示图例
+    plt.ylim([0,0.5])
+    plt.xlim([-4,4])
+    plt.savefig('./images/bayes_error_plot.jpg')
+    pylab.show()
 
 def main(modelName):
     # D [ x0, x1, x2, x3, ...]  xi是列向量，每行都是一个feature
@@ -423,7 +495,8 @@ def main(modelName):
 
 
     #Model choosen list=["MVG","LR","SVM","GMM"]
-    fusion(D,Dz,L,0.5)
+    # fusion(D,Dz,L,0.5)
+    BayesErrorPlot(D,Dz,L)
     model = modelName
     # if model == "MVG":
     #     model,minDCF= KFold("MVG", 5, D, L,0.5,None)

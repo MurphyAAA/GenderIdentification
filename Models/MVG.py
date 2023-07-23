@@ -42,10 +42,10 @@ class MVG:
         # print(DTRc0.shape)
         # 协方差
         if tied:
-            print("enter ties train")
+            # print("enter ties train")
             self.sigma.append((np.dot(DTRc0, DTRc0.T) + np.dot(DTRc1, DTRc1.T)) / self.DTR.shape[1])
         if bayes:
-            print("enter bayes train")
+            # print("enter bayes train")
            ## C = (np.dot(DTRc0, DTRc0.T) + np.dot(DTRc1, DTRc1.T)) / self.DTR.shape[1]
             self.sigma.append(np.dot(DTRc0, DTRc0.T) / DTRc0.shape[1])
             self.sigma.append(np.dot(DTRc1, DTRc1.T) / DTRc1.shape[1])

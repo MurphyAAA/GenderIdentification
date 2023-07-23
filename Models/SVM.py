@@ -49,7 +49,7 @@ class SVM:
 
         #wStar = np.dot(DTREXT, util.vcol(alphaStar) * util.vcol(Z))  # wStar 为 (feature+K 行，1列) 的列向量
 
-        print('my Dual loss ', JPrimal(wStar) + LDual(alphaStar)[0] )
+        # print('my Dual loss ', JPrimal(wStar) + LDual(alphaStar)[0] )
         return wStar
 
 

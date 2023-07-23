@@ -5,6 +5,7 @@
 @File ：util.py
 @IDE ：PyCharm
 """
+import pdb
 from enum import Enum
 import numpy as np
 class svm_kernel_type(Enum):
@@ -49,7 +50,7 @@ def minDcf(modelName, score, label, epiT, fusion):
 
         if res[idx] < minDCF:
             minDCF = res[idx]
-
+    # pdb.set_trace()
     print("minDCF in {} is : {}".format(modelName, minDCF))
     if fusion:
         return minDCF, FNR, FPR
@@ -63,6 +64,9 @@ def threthod(pi1,Cfn,Cfp):
     return t
 
 def normalizedDCF(modelName, score, label, epiT,Cfn, Cfp, fusion):
+    score = np.array(score).flatten()
+    label = np.array(label).flatten()
+
     t = threthod(epiT, Cfn, Cfp)
     Pred = np.int32(score > t)
     Conf = np.zeros((2, 2))
@@ -76,13 +80,31 @@ def normalizedDCF(modelName, score, label, epiT,Cfn, Cfp, fusion):
             FPR = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
             # FNR,FPR
             FNR = 1 - TPR
+    # FN = 0
+    # FP = 0
+    # TN = 0
+    # TP = 0
+    # pdb.set_trace()
+    # for i in np.arange(label.size):
+    #     if (Pred[i] == label[i]):
+    #         if (Pred[i] == 1):
+    #             TP += 1
+    #         else:
+    #             TN += 1
+    #     else:
+    #         if (Pred[i] == 1):
+    #             FP += 1
+    #         else:
+    #             FN += 1
+    # FNR = FN / (FN + TP)
 
+    # FPR = FP / (FP + TN)
     res = epiT*Cfn*FNR + (1-epiT)*Cfp*FPR # DCF
 
     sysRisk = min(epiT*Cfn,(1-epiT)*Cfp)
     res = res / sysRisk  #除 risk of an optimal system
-    print("minDCF in {} is : {}".format(modelName, res))
+    print("Actual normalized DCF in {} is : {} -- piT is :{}".format(modelName, res, epiT))
     if fusion:
         return res, FNR, FPR
     else:
-        return res
+        return res # actual DCF
