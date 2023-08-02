@@ -63,7 +63,7 @@ def threthod(pi1,Cfn,Cfp):
     t = -t
     return t
 
-def normalizedDCF(modelName, score, label, epiT,Cfn, Cfp, fusion):
+def normalizedDCF(modelName, score, label, epiT,Cfn, Cfp, fusion): # 传进来的就是计算好的(pi_tilde,1,1)
     score = np.array(score).flatten()
     label = np.array(label).flatten()
 
@@ -80,25 +80,6 @@ def normalizedDCF(modelName, score, label, epiT,Cfn, Cfp, fusion):
             FPR = Conf[1, 0] / (Conf[1, 0] + Conf[0, 0]) if ((Conf[1, 0] + Conf[0, 0]) != 0.0) else 0
             # FNR,FPR
             FNR = 1 - TPR
-    # FN = 0
-    # FP = 0
-    # TN = 0
-    # TP = 0
-    # pdb.set_trace()
-    # for i in np.arange(label.size):
-    #     if (Pred[i] == label[i]):
-    #         if (Pred[i] == 1):
-    #             TP += 1
-    #         else:
-    #             TN += 1
-    #     else:
-    #         if (Pred[i] == 1):
-    #             FP += 1
-    #         else:
-    #             FN += 1
-    # FNR = FN / (FN + TP)
-
-    # FPR = FP / (FP + TN)
     res = epiT*Cfn*FNR + (1-epiT)*Cfp*FPR # DCF
 
     sysRisk = min(epiT*Cfn,(1-epiT)*Cfp)

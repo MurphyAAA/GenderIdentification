@@ -157,13 +157,16 @@ def LDA(D, L, m):
 #     return predict
 
 
+
+
+
 ##kfold for hyperparameter
 ## hyper:  dict{hypername:val}
 ## model: string
 ## K: int
 ## D: 12*2400
 ## L : array([1,0,0,0...]) 2400
-def KFold(modelName, K, D, L, piTilde, hyperPar,fusion):
+def KFold(modelName, K, D, L, piTilde, hyperPar,fusion,calibration):
     ## D0: 12 * 720
     D0 = D[:, L == 0]
     L0 = L[L == 0]
@@ -241,6 +244,8 @@ def KFold(modelName, K, D, L, piTilde, hyperPar,fusion):
             label.append(LVAL)
     # print("piT is {}".format(piT))
     # print(f'score[0]={score[0].mean()}')
+    if calibration:
+        score = ScoreCalibration(score, label).KFoldCalibration()
     if fusion:
 
         # minDCF, FNR, FPR = util.minDcf(modelName, score, label, piTilde, fusion)
@@ -252,6 +257,44 @@ def KFold(modelName, K, D, L, piTilde, hyperPar,fusion):
         actDCF = util.normalizedDCF(modelName, score, label, piTilde, 1, 1, fusion)
         return model, actDCF, minDCF
 
+class ScoreCalibration:
+    def __init__(self, D, L):
+        self.D = util.vrow(np.array(D).flatten()) # 之前训练得到的score，作为新的输入D
+        self.L = np.array(L).flatten()
+        self.alpha = []
+        self.beta = []
+        self.gamma = []
+        self.pi= self.D[:,self.L==1].shape[1] / self.D.shape[1]
+    def logreg_object(self,v):  # loss function
+        self.alpha = v[0:-1]
+        self.gamma = v[-1]
+
+        self.alpha = util.vcol(self.alpha)
+        self.beta = self.gamma + np.log((self.pi / (1-self.pi)))
+        negz = -1 * (2 * self.L - 1)
+        # pdb.set_trace()
+        fx = np.dot(self.alpha.T, self.D) + self.beta
+        logJ = np.logaddexp(0, negz * fx)
+        w=[]
+        for nz in negz:
+            if nz == -1:# z=1
+                w.append(self.pi / self.D[:,self.L==1].shape[1])
+            else: # z = -1
+                w.append((1-self.pi) / self.D[:,self.L==1].shape[1])
+        weight_logJ = w * logJ
+        sum_weight_logJ = weight_logJ.sum()
+        # print(mean_logJ)
+        res = sum_weight_logJ
+        res = res.reshape(res.size, )
+        return res
+    # 数据集的score 作为输入，得到校准后的score
+    def KFoldCalibration(self):
+        x, f, d = scipy.optimize.fmin_l_bfgs_b(self.logreg_object, np.zeros(self.D.shape[0] + 1),
+                                                   approx_grad=True)
+        self.alpha = x[0:-1]
+        self.gamma = x[-1]
+        new_score = np.dot(self.alpha.T, self.D) + self.gamma
+        return new_score
 
 def split_data(D, L, seed=0):
     nTrain = int(D.shape[1] * 2.0 / 3.0)
@@ -417,62 +460,62 @@ def BayesErrorPlot(D, Dz, L):
     mindcf = np.zeros(effPriorLogOdds.size)
     for idx, p in enumerate(effPriorLogOdds):
         effP[idx] = (1 + np.exp(-p)) ** (-1)
-        _, dcf[idx], mindcf[idx] = KFold("GMM", 5, Dz, L, effP[idx], hyperPar, False)
+        _, dcf[idx], mindcf[idx] = KFold("GMM", 5, Dz, L, effP[idx], hyperPar, False,calibration=True)
 
     plt.plot(effPriorLogOdds, dcf,label='GMM DCF',color='r')
     plt.plot(effPriorLogOdds, mindcf,label='GMM min DCF',color='r', linestyle="--" )
 ##
     # -2- MVG Tied Daigonal non-Znorm
-    effP = np.zeros(effPriorLogOdds.size)
-    dcf = np.zeros(effPriorLogOdds.size)
-    mindcf = np.zeros(effPriorLogOdds.size)
-    for idx, p in enumerate(effPriorLogOdds):
-        effP[idx] = (1 + np.exp(-p)) ** (-1)
-        _, dcf[idx], mindcf[idx] = KFold("MVG", 5, D, L, effP[idx], None, False)
-
-    plt.plot(effPriorLogOdds, dcf, label='MVG DCF', color='b')
-    plt.plot(effPriorLogOdds, mindcf, label='MVG min DCF', color='b', linestyle="--")
+    # effP = np.zeros(effPriorLogOdds.size)
+    # dcf = np.zeros(effPriorLogOdds.size)
+    # mindcf = np.zeros(effPriorLogOdds.size)
+    # for idx, p in enumerate(effPriorLogOdds):
+    #     effP[idx] = (1 + np.exp(-p)) ** (-1)
+    #     _, dcf[idx], mindcf[idx] = KFold("MVG", 5, D, L, effP[idx], None, False)
+    #
+    # plt.plot(effPriorLogOdds, dcf, label='MVG DCF', color='b')
+    # plt.plot(effPriorLogOdds, mindcf, label='MVG min DCF', color='b', linestyle="--")
 
     # -3- SVM - 线性：C=0.01 ,
-    C = 0.01
-    effP = np.zeros(effPriorLogOdds.size)
-    dcf = np.zeros(effPriorLogOdds.size)
-    mindcf = np.zeros(effPriorLogOdds.size)
-    for idx, p in enumerate(effPriorLogOdds):
-        effP[idx] = (1 + np.exp(-p)) ** (-1)
-        _, dcf[idx], mindcf[idx] = KFold("SVM_Linear", 5, D, L, effP[idx], {"C": C, "K": 0}, False)
-    plt.plot(effPriorLogOdds, dcf, label='SVM_Linear DCF', color='g')
-    plt.plot(effPriorLogOdds, mindcf, label='SVM_Linear min DCF', color='g', linestyle="--")
+    # C = 0.01
+    # effP = np.zeros(effPriorLogOdds.size)
+    # dcf = np.zeros(effPriorLogOdds.size)
+    # mindcf = np.zeros(effPriorLogOdds.size)
+    # for idx, p in enumerate(effPriorLogOdds):
+    #     effP[idx] = (1 + np.exp(-p)) ** (-1)
+    #     _, dcf[idx], mindcf[idx] = KFold("SVM_Linear", 5, D, L, effP[idx], {"C": C, "K": 0}, False)
+    # plt.plot(effPriorLogOdds, dcf, label='SVM_Linear DCF', color='g')
+    # plt.plot(effPriorLogOdds, mindcf, label='SVM_Linear min DCF', color='g', linestyle="--")
     # -4- SVM - poly C=0.1
-    C = 0.1
-    hyperPar = {"K": 0, "loggamma": 1, "d": 2, "c": 1}
-    effP = np.zeros(effPriorLogOdds.size)
-    dcf = np.zeros(effPriorLogOdds.size)
-    mindcf = np.zeros(effPriorLogOdds.size)
-    for idx, p in enumerate(effPriorLogOdds):
-        effP[idx] = (1 + np.exp(-p)) ** (-1)
-        _, dcf[idx], mindcf[idx]  = KFold("SVM_nonlinear", 5, D, L, effP[idx],
-                               {"C": C, "K": hyperPar["K"], "loggamma": hyperPar["loggamma"], "d": 2, "c": 1}, False)
-    plt.plot(effPriorLogOdds, dcf, label='SVM_nonlinear DCF', color='y')
-    plt.plot(effPriorLogOdds, mindcf, label='SVM_nonlinear min DCF', color='y', linestyle="--")
+    # C = 0.1
+    # hyperPar = {"K": 0, "loggamma": 1, "d": 2, "c": 1}
+    # effP = np.zeros(effPriorLogOdds.size)
+    # dcf = np.zeros(effPriorLogOdds.size)
+    # mindcf = np.zeros(effPriorLogOdds.size)
+    # for idx, p in enumerate(effPriorLogOdds):
+    #     effP[idx] = (1 + np.exp(-p)) ** (-1)
+    #     _, dcf[idx], mindcf[idx]  = KFold("SVM_nonlinear", 5, D, L, effP[idx],
+    #                            {"C": C, "K": hyperPar["K"], "loggamma": hyperPar["loggamma"], "d": 2, "c": 1}, False)
+    # plt.plot(effPriorLogOdds, dcf, label='SVM_nonlinear DCF', color='y')
+    # plt.plot(effPriorLogOdds, mindcf, label='SVM_nonlinear min DCF', color='y', linestyle="--")
 
     # -5- LR里lambda = 0.001
-    hyperPar = {"lam": 0.001}
-
-    effP = np.zeros(effPriorLogOdds.size)
-    dcf = np.zeros(effPriorLogOdds.size)
-    mindcf = np.zeros(effPriorLogOdds.size)
-    for idx, p in enumerate(effPriorLogOdds):
-        effP[idx] = (1 + np.exp(-p)) ** (-1)
-        _, dcf[idx], mindcf[idx] = KFold("LR", 5, D, L, effP[idx], hyperPar, False)
-    plt.plot(effPriorLogOdds, dcf, label='LR DCF', color='c')
-    plt.plot(effPriorLogOdds, mindcf, label='LR min DCF', color='c', linestyle="--")
+    # hyperPar = {"lam": 0.001}
+    #
+    # effP = np.zeros(effPriorLogOdds.size)
+    # dcf = np.zeros(effPriorLogOdds.size)
+    # mindcf = np.zeros(effPriorLogOdds.size)
+    # for idx, p in enumerate(effPriorLogOdds):
+    #     effP[idx] = (1 + np.exp(-p)) ** (-1)
+    #     _, dcf[idx], mindcf[idx] = KFold("LR", 5, D, L, effP[idx], hyperPar, False)
+    # plt.plot(effPriorLogOdds, dcf, label='LR DCF', color='c')
+    # plt.plot(effPriorLogOdds, mindcf, label='LR min DCF', color='c', linestyle="--")
 
     plt.grid(True)
     plt.legend()  # 显示图例
     plt.ylim([0,0.5])
     plt.xlim([-4,4])
-    plt.savefig('./images/bayes_error_plot.jpg')
+    # plt.savefig('./images/bayes_error_plot.jpg')
     pylab.show()
 
 def main(modelName):
