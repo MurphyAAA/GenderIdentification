@@ -51,7 +51,8 @@ def minDcf(modelName, score, label, epiT, fusion):
         if res[idx] < minDCF:
             minDCF = res[idx]
     # pdb.set_trace()
-    print("minDCF in {} is : {}".format(modelName, minDCF))
+    print("minDCF in {} is : {} -- piT is :{}".format(modelName, minDCF,epiT))
+
     if fusion:
         return minDCF, FNR, FPR
     else:

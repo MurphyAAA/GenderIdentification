@@ -16,6 +16,8 @@ from Models import GMM
 import seaborn
 import matplotlib.style as style
 
+from ScoreCalibration import ScoreCalibration
+
 
 def PCA(D, L, m):
     mu = mcol(D.mean(1))  # mean of each feature
@@ -257,44 +259,6 @@ def KFold(modelName, K, D, L, piTilde, hyperPar,fusion,calibration):
         actDCF = util.normalizedDCF(modelName, score, label, piTilde, 1, 1, fusion)
         return model, actDCF, minDCF
 
-class ScoreCalibration:
-    def __init__(self, D, L):
-        self.D = util.vrow(np.array(D).flatten()) # 之前训练得到的score，作为新的输入D
-        self.L = np.array(L).flatten()
-        self.alpha = []
-        self.beta = []
-        self.gamma = []
-        self.pi= self.D[:,self.L==1].shape[1] / self.D.shape[1]
-    def logreg_object(self,v):  # loss function
-        self.alpha = v[0:-1]
-        self.gamma = v[-1]
-
-        self.alpha = util.vcol(self.alpha)
-        self.beta = self.gamma + np.log((self.pi / (1-self.pi)))
-        negz = -1 * (2 * self.L - 1)
-        # pdb.set_trace()
-        fx = np.dot(self.alpha.T, self.D) + self.beta
-        logJ = np.logaddexp(0, negz * fx)
-        w=[]
-        for nz in negz:
-            if nz == -1:# z=1
-                w.append(self.pi / self.D[:,self.L==1].shape[1])
-            else: # z = -1
-                w.append((1-self.pi) / self.D[:,self.L==1].shape[1])
-        weight_logJ = w * logJ
-        sum_weight_logJ = weight_logJ.sum()
-        # print(mean_logJ)
-        res = sum_weight_logJ
-        res = res.reshape(res.size, )
-        return res
-    # 数据集的score 作为输入，得到校准后的score
-    def KFoldCalibration(self):
-        x, f, d = scipy.optimize.fmin_l_bfgs_b(self.logreg_object, np.zeros(self.D.shape[0] + 1),
-                                                   approx_grad=True)
-        self.alpha = x[0:-1]
-        self.gamma = x[-1]
-        new_score = np.dot(self.alpha.T, self.D) + self.gamma
-        return new_score
 
 def split_data(D, L, seed=0):
     nTrain = int(D.shape[1] * 2.0 / 3.0)
