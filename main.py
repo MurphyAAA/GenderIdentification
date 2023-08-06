@@ -532,7 +532,7 @@ def DET(D, Dz, L, piT):
 
 def BayesErrorPlot(D, Dz, L):
     plt.title('Bayes Error Plot')
-    effPriorLogOdds = np.linspace(-4, 4, 3)
+    effPriorLogOdds = np.linspace(-4, 4, 21)
     hyperPar_GMM = {'n0': 2, 'n1': 2}
     hyperPar_SVM_Linear = {"C": 0.01, "K": 0}
     hyperPar_SVM_nonlinear = {"C": 0.1, "K": 0, "loggamma": 1, "d": 2, "c": 1}
