@@ -168,6 +168,111 @@ def LDA(D, L, m):
 ## K: int
 ## D: 12*2400
 ## L : array([1,0,0,0...]) 2400
+
+def FusionKFold(K, D, L, piTilde, hyperPar, modelList ):
+    ## D0: 12 * 720
+    D0 = D[:, L == 0]
+    L0 = L[L == 0]
+    ## D1: 12 * 1680
+    D1 = D[:, L == 1]
+    L1 = L[L == 1]
+    ## error since will return to list
+    # L1 = [x for x in L if x == 1]
+
+    ## shuffle the sample
+    np.random.seed(seed=0)
+    ind0 = np.random.permutation(D0.shape[1])
+    ind1 = np.random.permutation(D1.shape[1])
+    bestAcc = 0
+    ## ind range for every fold
+    sInFoldD0 = int(D0.shape[1] / K)
+    sInFoldD1 = int(D1.shape[1] / K)
+    modelDict = {}
+    actDCFs= {}
+    minDCFs = {}
+    scoreDict = {
+        'MVG': [],
+        'LR': [],
+        'SVM_Linear': [],
+        'SVM_nonlinear': [],
+        'GMM': []
+    }
+    label=[]
+    for i in range(K):
+        valD0Ind = ind0[i * sInFoldD0: (i + 1) * sInFoldD0]
+        traD0Ind = [x for x in ind0 if x not in valD0Ind]
+        D0VAL = D0[:, valD0Ind]
+        D0TR = D0[:, traD0Ind]
+        L0VAL = L0[valD0Ind]
+        L0TR = L0[traD0Ind]
+
+        valD1Ind = ind1[i * sInFoldD1: (i + 1) * sInFoldD1]
+        traD1Ind = [x for x in ind1 if x not in valD1Ind]
+        D1VAL = D1[:, valD1Ind]
+        D1TR = D1[:, traD1Ind]
+        L1VAL = L1[valD1Ind]
+        L1TR = L1[traD1Ind]
+
+        ## combine D0TR + D1TR
+        DTR = np.concatenate((D0TR, D1TR), axis=1)
+        LTR = np.concatenate((L0TR, L1TR))
+        DVAL = np.concatenate((D0VAL, D1VAL), axis=1)
+        LVAL = np.concatenate((L0VAL, L1VAL))
+        ## paralist = {acc,[parameter]}
+        # piT = D0.shape[1] / D1.shape[1]
+        if "MVG" in modelList:
+            modelDict["MVG"] = MVG.MVG(DTR, LTR, DVAL, LVAL)
+            modelDict["MVG"].train(tied=True, bayes=True)
+            scoreDict["MVG"].append(modelDict["MVG"].score())
+            # labelDict["MVG"].append(LVAL)
+            ##model.estimate(llr)
+            # Cfn = 1
+            # Cfp = ((piT * Cfn) / 0.1 - (piT * Cfn)) / (1 - piT)
+            # minDCF = model.minDcfPi(score, label, Cfn,Cfp,piT)
+        if "LR" in modelList:
+            modelDict["LR"] = LogisticRegression.LR(DTR, LTR, DVAL, LVAL, hyperPar["LR"]["lam"])
+            modelDict["LR"].train()
+            scoreDict["LR"].append(modelDict["LR"].score())
+            # labelDict["LR"].append(LVAL)
+            # Cfn = 1
+            # Cfp = ((piT * Cfn) / 0.99 - (piT) * Cfn) / (1 - piT)
+            # minDCF = model.minDcf(score, label,piTilde)
+        if "SVM_Linear" in modelList:
+            modelDict["SVM_Linear"] = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar["SVM_Linear"])  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
+            wStar = modelDict["SVM_Linear"].train_linear()
+            scoreDict["SVM_Linear"].append(modelDict["SVM_nonlinear"].score(wStar))
+            # labelDict["SVM_Linear"].append(LVAL)
+        if "SVM_nonlinear" in modelList:
+            modelDict["SVM_nonlinear"] = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar["SVM_nonlinear"])  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
+            # hyper C=1 gamma=1 K=0
+            alphaStar = modelDict["SVM_nonlinear"].train_nonlinear(util.svm_kernel_type.poly)
+            scoreDict["SVM_nonlinear"].append(modelDict["SVM_nonlinear"].score_nonlinear(alphaStar, util.svm_kernel_type.poly))
+            # labelDict["SVM_nonlinear"].append(LVAL)
+        if "GMM" in modelList:
+            modelDict["GMM"] = GMM.GMM(DTR, LTR, DVAL, LVAL, hyperPar["GMM"])
+            modelDict["GMM"].train()
+            scoreDict["GMM"].append(modelDict["GMM"].score())
+            # labelDict["GMM"].append(LVAL)
+        label.append(LVAL)
+    # print("piT is {}".format(piT))
+    # print(f'score[0]={score[0].mean()}')
+    for m in modelList: # 将k折的score拼成一个： (5,480) -> (1,2400)
+        scoreDict[m] = util.vrow(np.hstack(scoreDict[m]))
+    label = np.hstack(label)
+
+    if len(modelList)>1:
+        non_empty_arrays = [v for v in scoreDict.values() if len(v)!=0]
+        data_fusion = np.vstack(non_empty_arrays)
+        scoreDict["fusion"] = ScoreCalibration(data_fusion, label).KFoldCalibration()
+        minDCFs["fusion"] = util.minDcf("fusion", scoreDict["fusion"], label, piTilde, False)
+        actDCFs["fusion"] = util.normalizedDCF("fusion", scoreDict["fusion"], label, piTilde, 1, 1, False)
+
+    for m in modelList:
+        # if len(scoreDict[m]) != 0:
+        minDCFs[m] = util.minDcf(modelDict[m], scoreDict[m], label, piTilde, False)
+        actDCFs[m] = util.normalizedDCF(modelDict[m], scoreDict[m], label, piTilde, 1, 1, False)
+
+    return modelDict, actDCFs, minDCFs
 def KFold(modelName, K, D, L, piTilde, hyperPar,fusion,calibration):
     ## D0: 12 * 720
     D0 = D[:, L == 0]
@@ -246,14 +351,17 @@ def KFold(modelName, K, D, L, piTilde, hyperPar,fusion,calibration):
             label.append(LVAL)
     # print("piT is {}".format(piT))
     # print(f'score[0]={score[0].mean()}')
+    score = util.vrow(np.hstack(score))
+    label = np.hstack(label)
     if calibration:
         score = ScoreCalibration(score, label).KFoldCalibration()
     if fusion:
 
-        # minDCF, FNR, FPR = util.minDcf(modelName, score, label, piTilde, fusion)
+        minDCF, FNR, FPR = util.minDcf(modelName, score, label, piTilde, fusion)
         actDCF, FNR, FPR = util.normalizedDCF(modelName, score, label, piTilde, 1, 1, fusion)
-
-        return model, actDCF, FNR, FPR
+        # pdb.set_trace()
+        # return model, score, FNR, FPR
+        return model, score, label, actDCF, minDCF
     else:
         minDCF = util.minDcf(modelName, score, label, piTilde,fusion)
         actDCF = util.normalizedDCF(modelName, score, label, piTilde, 1, 1, fusion)
@@ -381,28 +489,36 @@ def ConfusionMatrix(predictList, L):
         CM[predictList[i], L[i]] += 1
     return CM
 
-def fusion(D, Dz, L, piT):
+def DET(D, Dz, L, piT):
     plt.title('DET')
     # -1- GMM 正类：4个高斯+Tied  负类：4个高斯+Tied
     hyperPar = {'n0': 2, 'n1': 2}
-    _, _,FNR, FPR = KFold("GMM", 5, Dz, L, piT, hyperPar,True)
+    _, score_GMM,FNR, FPR = KFold("GMM", 5, Dz, L, piT, hyperPar,True,calibration=False)
     plt.plot(FPR, FNR, color='red', label='GMM')
     # -2- MVG Tied Daigonal non-Znorm
-    _, _,FNR, FPR = KFold("MVG", 5, D, L, piT, None, True)
+    _, score_MVG,FNR, FPR = KFold("MVG", 5, D, L, piT, None, True,calibration=False)
     plt.plot(FPR, FNR, color='green', label='MVG')
     # -3- SVM - 线性：C=0.01 ,
     C=0.01
-    _, _,FNR, FPR = KFold("SVM_Linear", 5, D, L, piT,{"C": C, "K": 0}, True)
+    _, score_SVM_l,FNR, FPR = KFold("SVM_Linear", 5, D, L, piT,{"C": C, "K": 0}, True,calibration=False)
     plt.plot(FPR, FNR, color='skyblue', label='linear SVM')
     # -4- SVM - poly C=0.1
-    C = 0.1
-    hyperPar = {"K":0, "loggamma":1,"d":2,"c":1}
-    _, _,FNR, FPR = KFold("SVM_nonlinear", 5, D, L, piT,{"C": C, "K": hyperPar["K"], "loggamma": hyperPar["loggamma"], "d": 2, "c": 1}, True)
-    plt.plot(FPR, FNR, color='blue', label='non linear SVM')
+    # C = 0.1
+    # hyperPar = {"K":0, "loggamma":1,"d":2,"c":1}
+    # _, score_SVM_nl,FNR, FPR = KFold("SVM_nonlinear", 5, D, L, piT,{"C": C, "K": hyperPar["K"], "loggamma": hyperPar["loggamma"], "d": 2, "c": 1}, True,calibration=False)
+    # plt.plot(FPR, FNR, color='blue', label='non linear SVM')
     # -5- LR里lambda = 0.001
     hyperPar = {"lam": 0.001}
-    _, _,FNR, FPR = KFold("LR", 5, D, L, piT, hyperPar, True)
+    _, score_LR,FNR, FPR = KFold("LR", 5, D, L, piT, hyperPar, True,calibration=False)
     plt.plot(FPR, FNR, color='black', label='LR')
+
+
+    # -6- funsion  GMM + SVM_l
+    # score_GMM = np.hstack(score_GMM)
+    # score_SVM_l = np.hstack(score_SVM_l)
+    # score_data = np.vstack((score_GMM,score_SVM_l))
+    # _, score_GMM_SVMl, FNR, FPR = KFold("LR", 5, score_GMM, L, piT, {"lam": 0}, True, calibration=False)
+    # plt.plot(FPR, FNR, color='orangered', label='fusion')
 
     plt.xscale('log')  # 设置横轴为对数尺度
     plt.yscale('log')  # 设置纵轴为对数尺度
@@ -410,36 +526,71 @@ def fusion(D, Dz, L, piT):
     plt.legend()  # 显示图例
     plt.xlabel('False Positive Rate')
     plt.ylabel('False Negative Rate')
-    plt.savefig('./images/actual_DET_GMM_MVG_LSVM_NLSVM_LR.jpg')
+    # plt.savefig('./images/actual_DET_GMM_MVG_LSVM_NLSVM_LR.jpg') # act DCF只有一个threshold 所以FPR FNR就是一个值，没有DET图
     plt.show()
 
 
 def BayesErrorPlot(D, Dz, L):
     plt.title('Bayes Error Plot')
-    effPriorLogOdds = np.linspace(-4, 4, 21)
+    effPriorLogOdds = np.linspace(-4, 4, 3)
+    hyperPar_GMM = {'n0': 2, 'n1': 2}
+    hyperPar_SVM_Linear = {"C": 0.01, "K": 0}
+    hyperPar_SVM_nonlinear = {"C": 0.1, "K": 0, "loggamma": 1, "d": 2, "c": 1}
+    hyperPar_LR = {"lam": 0.001}
+    hyperPar = {"GMM":hyperPar_GMM,
+                "SVM_Linear":hyperPar_SVM_Linear,
+                "SVM_nonlinear":hyperPar_SVM_nonlinear,
+                "LR":hyperPar_LR}
+    modelList = ["GMM","MVG"]
     # -1- GMM 正类：4个高斯+Tied  负类：4个高斯+Tied
-    hyperPar = {'n0': 2, 'n1': 2}
+    # hyperPar = {'n0': 2, 'n1': 2}
     effP = np.zeros(effPriorLogOdds.size)
-    dcf = np.zeros(effPriorLogOdds.size)
-    mindcf = np.zeros(effPriorLogOdds.size)
+    dcfDict={}
+    mindcfDict = {}
+    for m in modelList:
+        dcfDict[m] = np.zeros(effPriorLogOdds.size)
+        mindcfDict[m] = np.zeros(effPriorLogOdds.size)
+    if len(modelList) > 1:
+        dcfDict["fusion"] = np.zeros(effPriorLogOdds.size)
+        mindcfDict["fusion"] = np.zeros(effPriorLogOdds.size)
+    # dcf = np.zeros(effPriorLogOdds.size)
+    # mindcf = np.zeros(effPriorLogOdds.size)
+    score_GMM = []
+    label_GMM = []
     for idx, p in enumerate(effPriorLogOdds):
         effP[idx] = (1 + np.exp(-p)) ** (-1)
-        _, dcf[idx], mindcf[idx] = KFold("GMM", 5, Dz, L, effP[idx], hyperPar, False,calibration=True)
+        _, actDcfs, minDcfs= FusionKFold(5,Dz,L,effP[idx], hyperPar,modelList)
+        for m in modelList:
+            dcfDict[m][idx] = actDcfs[m]
+            mindcfDict[m][idx] = minDcfs[m]
+        if len(modelList)>1:
+            dcfDict["fusion"][idx] = actDcfs["fusion"]
+            mindcfDict["fusion"][idx] = minDcfs["fusion"]
+        # _,s, l, dcf[idx], mindcf[idx] = KFold("GMM", 5, Dz, L, effP[idx], hyperPar, True, calibration=True)
+        # score_GMM.append(np.hstack(s))
+        # label_GMM.append(np.hstack(l))
 
-    plt.plot(effPriorLogOdds, dcf,label='GMM DCF',color='r')
-    plt.plot(effPriorLogOdds, mindcf,label='GMM min DCF',color='r', linestyle="--" )
+    plt.plot(effPriorLogOdds, dcfDict["GMM"],label='GMM DCF',color='r')
+    plt.plot(effPriorLogOdds, mindcfDict["GMM"],label='GMM min DCF',color='r', linestyle="--" )
+    plt.plot(effPriorLogOdds, dcfDict["MVG"], label='MVG DCF', color='b')
+    plt.plot(effPriorLogOdds, mindcfDict["MVG"], label='MVG min DCF', color='b', linestyle="--")
+    plt.plot(effPriorLogOdds, dcfDict["fusion"], label='fusion DCF', color='black')
+    plt.plot(effPriorLogOdds, mindcfDict["fusion"], label='fusion min DCF', color='black', linestyle="--")
 ##
     # -2- MVG Tied Daigonal non-Znorm
     # effP = np.zeros(effPriorLogOdds.size)
     # dcf = np.zeros(effPriorLogOdds.size)
     # mindcf = np.zeros(effPriorLogOdds.size)
+    # score_MVG = []
+    # label_MVG = []
     # for idx, p in enumerate(effPriorLogOdds):
     #     effP[idx] = (1 + np.exp(-p)) ** (-1)
-    #     _, dcf[idx], mindcf[idx] = KFold("MVG", 5, D, L, effP[idx], None, False)
-    #
+    #     _, s, l, dcf[idx], mindcf[idx] = KFold("MVG", 5, D, L, effP[idx], None, True, calibration=True)
+    #     score_MVG.append(np.hstack(s))
+    #     label_MVG.append(np.hstack(l))
     # plt.plot(effPriorLogOdds, dcf, label='MVG DCF', color='b')
     # plt.plot(effPriorLogOdds, mindcf, label='MVG min DCF', color='b', linestyle="--")
-
+    # pdb.set_trace()
     # -3- SVM - 线性：C=0.01 ,
     # C = 0.01
     # effP = np.zeros(effPriorLogOdds.size)
@@ -475,6 +626,25 @@ def BayesErrorPlot(D, Dz, L):
     # plt.plot(effPriorLogOdds, dcf, label='LR DCF', color='c')
     # plt.plot(effPriorLogOdds, mindcf, label='LR min DCF', color='c', linestyle="--")
 
+    # -6- fusion GMM+ MVG
+    # effP = np.zeros(effPriorLogOdds.size)
+    # dcf = np.zeros(effPriorLogOdds.size)
+    # mindcf = np.zeros(effPriorLogOdds.size)
+    # # score_GMM = np.hstack(score_GMM)
+    # # score_MVG = np.hstack(score_MVG)
+    # # score_data = np.vstack((score_GMM,score_MVG))
+    # for idx, p in enumerate(effPriorLogOdds):
+    #     effP[idx] = (1 + np.exp(-p)) ** (-1)
+    #     score_data = np.vstack((score_GMM[idx],score_MVG[idx]))
+    #     # 这个label不对，因为打乱顺序了，应该和score一起返回回来再拼！！！！！
+    #     score = ScoreCalibration(score_data,L).KFoldCalibration() # 这个label不对，因为打乱顺序了，应该和score一起返回回来再拼！！！！！！
+    #     mindcf[idx] = util.minDcf("fusion", score, L, effP[idx], False)
+    #     dcf[idx] = util.normalizedDCF("fusion", score, L, effP[idx], 1, 1, False)
+    #     # _, dcf[idx], mindcf[idx] = KFold("MVG", 5, D, L, effP[idx], None, True, calibration=False)
+    #
+    # plt.plot(effPriorLogOdds, dcf, label='fusion DCF', color='black')
+    # plt.plot(effPriorLogOdds, mindcf, label='fusion min DCF', color='black', linestyle="--")
+
     plt.grid(True)
     plt.legend()  # 显示图例
     plt.ylim([0,0.5])
@@ -502,7 +672,7 @@ def main(modelName):
 
 
     #Model choosen list=["MVG","LR","SVM","GMM"]
-    # fusion(D,Dz,L,0.5)
+    # DET(D,Dz,L,0.5)
     BayesErrorPlot(D,Dz,L)
     model = modelName
     # if model == "MVG":

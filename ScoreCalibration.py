@@ -5,14 +5,16 @@
 @File ：ScoreCalibration.py
 @IDE ：PyCharm
 """
+import pdb
+
 import util
 import numpy as np
 import scipy.linalg
 
 class ScoreCalibration:
     def __init__(self, D, L):
-        self.D = util.vrow(np.array(D).flatten()) # 之前训练得到的score，作为新的输入D
-        self.L = np.array(L).flatten()
+        self.D = D # 之前训练得到的score，作为新的输入D
+        self.L = L
         self.alpha = []
         self.beta = []
         self.gamma = []
