@@ -240,7 +240,7 @@ def FusionKFold(K, D, L, piTilde, hyperPar, modelList ):
         if "SVM_Linear" in modelList:
             modelDict["SVM_Linear"] = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar["SVM_Linear"])  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
             wStar = modelDict["SVM_Linear"].train_linear()
-            scoreDict["SVM_Linear"].append(modelDict["SVM_nonlinear"].score(wStar))
+            scoreDict["SVM_Linear"].append(modelDict["SVM_Linear"].score(wStar))
             # labelDict["SVM_Linear"].append(LVAL)
         if "SVM_nonlinear" in modelList:
             modelDict["SVM_nonlinear"] = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar["SVM_nonlinear"])  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
@@ -541,7 +541,8 @@ def BayesErrorPlot(D, Dz, L):
                 "SVM_Linear":hyperPar_SVM_Linear,
                 "SVM_nonlinear":hyperPar_SVM_nonlinear,
                 "LR":hyperPar_LR}
-    modelList = ["GMM","MVG"]
+    modelList = ["GMM", "SVM_Linear"]
+    colorList = ["b", "g"]
     # -1- GMM 正类：4个高斯+Tied  负类：4个高斯+Tied
     # hyperPar = {'n0': 2, 'n1': 2}
     effP = np.zeros(effPriorLogOdds.size)
@@ -570,10 +571,9 @@ def BayesErrorPlot(D, Dz, L):
         # score_GMM.append(np.hstack(s))
         # label_GMM.append(np.hstack(l))
 
-    plt.plot(effPriorLogOdds, dcfDict["GMM"],label='GMM DCF',color='r')
-    plt.plot(effPriorLogOdds, mindcfDict["GMM"],label='GMM min DCF',color='r', linestyle="--" )
-    plt.plot(effPriorLogOdds, dcfDict["MVG"], label='MVG DCF', color='b')
-    plt.plot(effPriorLogOdds, mindcfDict["MVG"], label='MVG min DCF', color='b', linestyle="--")
+    for i, m in enumerate(modelList):
+        plt.plot(effPriorLogOdds, dcfDict[m],label=f'{m} DCF',color=colorList[i])
+        plt.plot(effPriorLogOdds, mindcfDict[m],label=f'{m} min DCF',color=colorList[i], linestyle="--" )
     plt.plot(effPriorLogOdds, dcfDict["fusion"], label='fusion DCF', color='black')
     plt.plot(effPriorLogOdds, mindcfDict["fusion"], label='fusion min DCF', color='black', linestyle="--")
 ##
