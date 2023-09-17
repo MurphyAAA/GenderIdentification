@@ -6,8 +6,6 @@ import util
 
 class SVM:
     def __init__(self, DTR, LTR, DVAL, LVAL,hyperParam):
-        self.mu = []
-        self.sigma = []
         self.parameter = hyperParam # { "C":1, "K":0, "loggamma":1, "d":2, "c":0}
         self.predictList = []
         self.DTR = DTR
@@ -17,6 +15,9 @@ class SVM:
         self.Z = np.zeros(self.LTR.shape)
         self.Z[self.LTR == 1] = 1
         self.Z[self.LTR == 0] = -1
+        # 训练的参数
+        self.wStar=0 # linear
+        self.alphaStar=0 # non linear
 
 
     def train_linear(self ):
@@ -50,12 +51,15 @@ class SVM:
         #wStar = np.dot(DTREXT, util.vcol(alphaStar) * util.vcol(Z))  # wStar 为 (feature+K 行，1列) 的列向量
 
         # print('my Dual loss ', JPrimal(wStar) + LDual(alphaStar)[0] )
-        return wStar
+        # return wStar
+        self.wStar = wStar
 
-
-    def score(self,wStar):
+    def score(self):
         xtilde_val = np.vstack([self.DVAL, np.ones((1, self.DVAL.shape[1])) * self.parameter['K']])
-        res = np.dot(wStar.T,xtilde_val).reshape(-1)
+        if self.wStar !=0:
+            res = np.dot(self.wStar.T,xtilde_val).reshape(-1)
+        else:
+            print("error: wStar is 0")
         return res
 
 
@@ -135,8 +139,9 @@ class SVM:
         # wStar = np.dot(DTR, vcol(alphaStar) * vcol(Z))  # wStar 为 (feature+K 行，1列) 的列向量
         # pdb.set_trace()
         print('Dual loss ', JDualv2(alphaStar)[0])
-        return alphaStar
-    def score_nonlinear(self, alphaStar, type):
+        self.alphaStar = alphaStar
+        # return alphaStar
+    def score_nonlinear(self, type):
         if type == util.svm_kernel_type.rbf:
             Dist = util.vcol((self.DVAL ** 2).sum(0)) + util.vrow((self.DTR ** 2).sum(0)) - 2 * np.dot(self.DVAL.T, self.DTR)
             # gamma not loggamma
@@ -148,7 +153,9 @@ class SVM:
             # pdb.set_trace()
             kernel = (np.dot(self.DVAL.T, self.DTR) + self.parameter["c"]) ** self.parameter["d"] + self.parameter["K"] ** 0.5
         # print(kernel)
-        S = np.matmul(kernel, util.vcol(alphaStar * self.Z)).flatten()
-
+        if self.alphaStar !=0:
+            S = np.matmul(kernel, util.vcol(self.alphaStar * self.Z)).flatten()
+        else:
+            print("error: alphaStar is 0")
         return S
 

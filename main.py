@@ -239,14 +239,14 @@ def FusionKFold(K, D, L, piTilde, hyperPar, modelList, calibration=False):
             # minDCF = model.minDcf(score, label,piTilde)
         if "SVM_Linear" in modelList:
             modelDict["SVM_Linear"] = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar["SVM_Linear"])  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
-            wStar = modelDict["SVM_Linear"].train_linear()
-            scoreDict["SVM_Linear"].append(modelDict["SVM_Linear"].score(wStar))
+            modelDict["SVM_Linear"].train_linear()
+            scoreDict["SVM_Linear"].append(modelDict["SVM_Linear"].score())
             # labelDict["SVM_Linear"].append(LVAL)
         if "SVM_nonlinear" in modelList:
             modelDict["SVM_nonlinear"] = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar["SVM_nonlinear"])  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
             # hyper C=1 gamma=1 K=0
-            alphaStar = modelDict["SVM_nonlinear"].train_nonlinear(util.svm_kernel_type.poly)
-            scoreDict["SVM_nonlinear"].append(modelDict["SVM_nonlinear"].score_nonlinear(alphaStar, util.svm_kernel_type.poly))
+            modelDict["SVM_nonlinear"].train_nonlinear(util.svm_kernel_type.poly)
+            scoreDict["SVM_nonlinear"].append(modelDict["SVM_nonlinear"].score_nonlinear(util.svm_kernel_type.poly))
             # labelDict["SVM_nonlinear"].append(LVAL)
         if "GMM" in modelList:
             modelDict["GMM"] = GMM.GMM(DTR, LTR, DVAL, LVAL, hyperPar["GMM"])
@@ -337,14 +337,14 @@ def KFold(modelName, K, D, L, piTilde, hyperPar,fusion,calibration):
             # minDCF = model.minDcf(score, label,piTilde)
         elif modelName == "SVM_Linear":
             model = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar) # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
-            wStar = model.train_linear()
-            score.append(model.score(wStar))
+            model.train_linear()
+            score.append(model.score())
             label.append(LVAL)
         elif modelName == "SVM_nonlinear":
             model = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar)  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
             # hyper C=1 gamma=1 K=0
-            alphaStar = model.train_nonlinear(util.svm_kernel_type.poly)
-            score.append(model.score_nonlinear(alphaStar,util.svm_kernel_type.poly))
+            model.train_nonlinear(util.svm_kernel_type.poly)
+            score.append(model.score_nonlinear(util.svm_kernel_type.poly))
             label.append(LVAL)
         elif modelName == "GMM":
             model = GMM.GMM(DTR, LTR, DVAL, LVAL, hyperPar)
@@ -543,8 +543,12 @@ def BayesErrorPlot(D, Dz, L):
                 "SVM_Linear":hyperPar_SVM_Linear,
                 "SVM_nonlinear":hyperPar_SVM_nonlinear,
                 "LR":hyperPar_LR}
-    modelList = [ "SVM_Linear", "MVG"]
-    colorList = ["b", "g"]
+    # modelList = ["GMM","SVM_Linear"]
+    # colorList = ["r", "g"]
+    # modelList = ["SVM_Linear","MVG"]
+    # colorList = ["g", "b"]
+    modelList = ["GMM","SVM_Linear","MVG"]
+    colorList = ["r", "g", "b"]
     # -1- GMM 正类：4个高斯+Tied  负类：4个高斯+Tied
     # hyperPar = {'n0': 2, 'n1': 2}
     effP = np.zeros(effPriorLogOdds.size)
@@ -562,7 +566,7 @@ def BayesErrorPlot(D, Dz, L):
     label_GMM = []
     for idx, p in enumerate(effPriorLogOdds):
         effP[idx] = (1 + np.exp(-p)) ** (-1)
-        _, actDcfs, minDcfs= FusionKFold(5,D,L,effP[idx], hyperPar,modelList,calibration=False)
+        _, actDcfs, minDcfs= FusionKFold(5,D,L,effP[idx], hyperPar,modelList,calibration=True)
         for m in modelList:
             dcfDict[m][idx] = actDcfs[m]
             mindcfDict[m][idx] = minDcfs[m]
@@ -653,8 +657,14 @@ def BayesErrorPlot(D, Dz, L):
     plt.xlim([-4,4])
     plt.xlabel(r'$\log(\frac{\pi}{1-\pi})$')
     plt.ylabel("DCF")
-    plt.savefig('./images/bayes_error_plot_SVM_l_MVG_calibration.jpg')
+    plt.savefig('./images/bayes_error_plot_GMM_SVM_l_MVG_calibration.jpg')
     pylab.show()
+
+def Evaluation(D, L):
+    piT = 0.5
+    hyperPar = {'n0': 2, 'n1': 2}
+    _, score_GMM, FNR, FPR = KFold("GMM", 5, D, L, piT, hyperPar, True, calibration=False)
+    plt.plot(FPR, FNR, color='red', label='GMM')
 
 def main(modelName):
     # D [ x0, x1, x2, x3, ...]  xi是列向量，每行都是一个feature
@@ -677,7 +687,8 @@ def main(modelName):
 
     #Model choosen list=["MVG","LR","SVM","GMM"]
     # DET(D,Dz,L,0.5)
-    BayesErrorPlot(D,Dz,L)
+    # BayesErrorPlot(D,Dz,L)
+    Evaluation(D,L)
     model = modelName
     # if model == "MVG":
     #     model,minDCF= KFold("MVG", 5, D, L,0.5,None)

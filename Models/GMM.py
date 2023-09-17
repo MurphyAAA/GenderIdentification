@@ -9,6 +9,7 @@ class GMM:
     def __init__(self, DTR, LTR, DVAL, LVAL, hyperPar):
         self.mu = []
         self.sigma = []
+        # 训练的参数
         self.parameter = None
         self.predictList = []
         self.DTR = DTR

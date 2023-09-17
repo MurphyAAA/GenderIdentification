@@ -6,9 +6,7 @@ import util
 
 class MVG:
     def __init__(self, DTR, LTR, DVAL, LVAL):
-        self.mu = []
-        self.sigma = []
-        self.parameter = []
+        # self.parameter = []
         self.predictList = []
         self.DTR = DTR
         self.LTR = LTR
@@ -16,6 +14,9 @@ class MVG:
         self.LVAL = LVAL
         self.tied = False
         self.bayes = False
+        # 训练的参数
+        self.mu = []
+        self.sigma = []
 
     def _logpdf_GAU_ND_fast(self, X, mu, C):
         XC = X - mu
@@ -57,7 +58,7 @@ class MVG:
 
             self.sigma.append(np.dot(DTRc0, DTRc0.T) / DTRc0.shape[1])
             self.sigma.append(np.dot(DTRc1, DTRc1.T) / DTRc1.shape[1])
-            self.parameter = [{"mu": self.mu}, {"sigma": self.sigma}]
+            # self.parameter = [{"mu": self.mu}, {"sigma": self.sigma}]
 
     def bayes_decision_threshold(self, pi1, Cfn, Cfp):
         t = np.log(pi1 * Cfn)
