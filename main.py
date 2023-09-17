@@ -543,7 +543,7 @@ def BayesErrorPlot(D, Dz, L):
                 "SVM_Linear":hyperPar_SVM_Linear,
                 "SVM_nonlinear":hyperPar_SVM_nonlinear,
                 "LR":hyperPar_LR}
-    modelList = ["GMM", "SVM_Linear"]
+    modelList = [ "SVM_Linear", "MVG"]
     colorList = ["b", "g"]
     # -1- GMM 正类：4个高斯+Tied  负类：4个高斯+Tied
     # hyperPar = {'n0': 2, 'n1': 2}
@@ -651,7 +651,9 @@ def BayesErrorPlot(D, Dz, L):
     plt.legend()  # 显示图例
     plt.ylim([0,0.5])
     plt.xlim([-4,4])
-    plt.savefig('./images/bayes_error_plot_GMM_SVM_l_.jpg')
+    plt.xlabel(r'$\log(\frac{\pi}{1-\pi})$')
+    plt.ylabel("DCF")
+    plt.savefig('./images/bayes_error_plot_SVM_l_MVG_calibration.jpg')
     pylab.show()
 
 def main(modelName):
