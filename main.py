@@ -169,7 +169,7 @@ def LDA(D, L, m):
 ## D: 12*2400
 ## L : array([1,0,0,0...]) 2400
 
-def FusionKFold(K, D, L, piTilde, hyperPar, modelList ):
+def FusionKFold(K, D, L, piTilde, hyperPar, modelList, calibration=False):
     ## D0: 12 * 720
     D0 = D[:, L == 0]
     L0 = L[L == 0]
@@ -268,6 +268,8 @@ def FusionKFold(K, D, L, piTilde, hyperPar, modelList ):
         actDCFs["fusion"] = util.normalizedDCF("fusion", scoreDict["fusion"], label, piTilde, 1, 1, False)
 
     for m in modelList:
+        if calibration:
+            scoreDict[m] = ScoreCalibration(scoreDict[m], label).KFoldCalibration()
         # if len(scoreDict[m]) != 0:
         minDCFs[m] = util.minDcf(modelDict[m], scoreDict[m], label, piTilde, False)
         actDCFs[m] = util.normalizedDCF(modelDict[m], scoreDict[m], label, piTilde, 1, 1, False)
@@ -560,7 +562,7 @@ def BayesErrorPlot(D, Dz, L):
     label_GMM = []
     for idx, p in enumerate(effPriorLogOdds):
         effP[idx] = (1 + np.exp(-p)) ** (-1)
-        _, actDcfs, minDcfs= FusionKFold(5,Dz,L,effP[idx], hyperPar,modelList)
+        _, actDcfs, minDcfs= FusionKFold(5,D,L,effP[idx], hyperPar,modelList,calibration=False)
         for m in modelList:
             dcfDict[m][idx] = actDcfs[m]
             mindcfDict[m][idx] = minDcfs[m]
@@ -598,7 +600,7 @@ def BayesErrorPlot(D, Dz, L):
     # mindcf = np.zeros(effPriorLogOdds.size)
     # for idx, p in enumerate(effPriorLogOdds):
     #     effP[idx] = (1 + np.exp(-p)) ** (-1)
-    #     _, dcf[idx], mindcf[idx] = KFold("SVM_Linear", 5, D, L, effP[idx], {"C": C, "K": 0}, False)
+    #     _, dcf[idx], mindcf[idx] = KFold("SVM_Linear", 5, D, L, effP[idx], {"C": C, "K": 0}, False, False)
     # plt.plot(effPriorLogOdds, dcf, label='SVM_Linear DCF', color='g')
     # plt.plot(effPriorLogOdds, mindcf, label='SVM_Linear min DCF', color='g', linestyle="--")
     # -4- SVM - poly C=0.1
@@ -649,7 +651,7 @@ def BayesErrorPlot(D, Dz, L):
     plt.legend()  # 显示图例
     plt.ylim([0,0.5])
     plt.xlim([-4,4])
-    # plt.savefig('./images/bayes_error_plot.jpg')
+    plt.savefig('./images/bayes_error_plot_GMM_SVM_l_.jpg')
     pylab.show()
 
 def main(modelName):
