@@ -439,6 +439,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
             print("lambda = {}:  minDCF:{} ".format(i, minDCF))
             if minDCF < bestminDCF:
                 bestminDCF = minDCF
+                bestModel = model
                 bestHyper = {"lam": i}
 
     elif modelName == "GMM":
@@ -451,6 +452,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
                 print("n0 = {} n1={}:  minDCF:{} ".format(n0, n1, minDCF))
                 if minDCF < bestminDCF:
                     bestminDCF = minDCF
+                    bestModel = model
                     bestHyper = {'n0': n0, 'n1': n1}
             w0y.append(y)
 
@@ -461,6 +463,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
             print("C = {}:  minDCF:{} ".format(C, minDCF))
             if minDCF < bestminDCF:
                 bestminDCF = minDCF
+                bestModel = model
                 bestHyper = {"C": C}
     elif modelName == "SVM_nonlinear":
         for C in hyperParList["C"]:
@@ -469,6 +472,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
             print("C = {}:  minDCF:{} ".format(C, minDCF))
             if minDCF < bestminDCF:
                 bestminDCF = minDCF
+                bestModel = model
                 bestHyper = {"C": C}
 
 
@@ -479,7 +483,7 @@ def KFoldHyper(modelName, hyperParList, K, D, L, piTilde):
     # plt.ylabel('minDCF')
     # plt.title('Line Chart')
     # plt.show()
-    return bestHyper, model, bestminDCF
+    return bestHyper, bestModel, bestminDCF
 
 
 def ConfusionMatrix(predictList, L):
@@ -533,7 +537,7 @@ def DET(D, Dz, L, piT):
     plt.show()
 
 
-def BayesErrorPlot(D, Dz, L):
+def BayesErrorPlot(D, L):
     plt.title('Bayes Error Plot')
     effPriorLogOdds = np.linspace(-4, 4, 21)
     hyperPar_GMM = {'n0': 2, 'n1': 2}
@@ -579,8 +583,10 @@ def BayesErrorPlot(D, Dz, L):
         # label_GMM.append(np.hstack(l))
 
     for i, m in enumerate(modelList):
+
         plt.plot(effPriorLogOdds, dcfDict[m],label=f'{m} DCF',color=colorList[i])
         plt.plot(effPriorLogOdds, mindcfDict[m],label=f'{m} min DCF',color=colorList[i], linestyle="--" )
+    pdb.set_trace()
     plt.plot(effPriorLogOdds, dcfDict["fusion"], label='fusion DCF', color='black')
     plt.plot(effPriorLogOdds, mindcfDict["fusion"], label='fusion min DCF', color='black', linestyle="--")
 ##
@@ -673,7 +679,7 @@ def Evaluation(DTR, LTR, DTE, LTE):
 
     effP = 0.5
 
-    modelList = ["GMM","SVM_Linear"]
+    modelList = ["GMM"]
     dcfDict = {}
     mindcfDict = {}
     scoreDict = {
@@ -683,12 +689,12 @@ def Evaluation(DTR, LTR, DTE, LTE):
         'SVM_nonlinear': [],
         'GMM': []
     }
-    for m in modelList:
-        dcfDict[m] = 0
-        mindcfDict[m] = 0
-    if len(modelList) > 1:
-        dcfDict["fusion"] = 0
-        mindcfDict["fusion"] = 0
+    # for m in modelList:
+    #     dcfDict[m] = 0
+    #     mindcfDict[m] = 0
+    # if len(modelList) > 1:
+    #     dcfDict["fusion"] = 0
+    #     mindcfDict["fusion"] = 0
     # 训练  ！！ 注意这里的models 并不是最好的，而是最后一折的model，最后再改，想办法得到获取minDCF对应的model
     # Train
     models, _, _= FusionKFold(5,DTR,LTR,effP, hyperPar,modelList,calibration=True)
@@ -725,6 +731,8 @@ def Evaluation(DTR, LTR, DTE, LTE):
     # evaluation每个模型，得到在测试集上的score， 从新fusion，得到minDCF
     # pdb.set_trace()
     print("____________*EVALUATION*____________")
+
+
     for model in models.values():
         if model.name == "SVM_nonlinear":
             scoreDict[model.name]= model.evaluation_nonlinear(DTE,util.svm_kernel_type.poly)
@@ -736,18 +744,51 @@ def Evaluation(DTR, LTR, DTE, LTE):
         data_fusion = np.vstack(non_empty_arrays)
         scoreDict["fusion"] = ScoreCalibration(data_fusion, LTE).KFoldCalibration()
 
-        mindcfDict["fusion"] = util.minDcf("[fusion]", scoreDict["fusion"], LTE, effP, False)
-        dcfDict["fusion"] = util.normalizedDCF("[fusion]", scoreDict["fusion"], LTE, effP, 1, 1, False)
+        # mindcfDict["fusion"] = util.minDcf("[fusion]", scoreDict["fusion"], LTE, effP, False)
+        # dcfDict["fusion"] = util.normalizedDCF("[fusion]", scoreDict["fusion"], LTE, effP, 1, 1, False)
 
+    # for m in modelList:
+    # #     # if calibration:
+    # #     #     scoreDict[m] = ScoreCalibration(scoreDict[m], LTE).KFoldCalibration()
+    # #     # if len(scoreDict[m]) != 0:
+    #     mindcfDict[m] ,_,_= util.minDcf(f"[{m}]", scoreDict[m], LTE, effP, True)
+    #     dcfDict[m] ,_,_= util.normalizedDCF(f"[{m}]", scoreDict[m], LTE, effP, 1, 1, True)
+
+    plt.title('Bayes Error Plot')
+    effPriorLogOdds = np.linspace(-4, 4, 21)
+    effP = np.zeros(effPriorLogOdds.size)
+    colorList = ["r", "g", "b"]
+
+    if len(modelList) > 1:
+        dcfDict["fusion"] = np.zeros(effPriorLogOdds.size)
+        mindcfDict["fusion"] = np.zeros(effPriorLogOdds.size)
     for m in modelList:
-        # if calibration:
-        #     scoreDict[m] = ScoreCalibration(scoreDict[m], LTE).KFoldCalibration()
-        # if len(scoreDict[m]) != 0:
-        mindcfDict[m] ,_,_= util.minDcf(f"[{m}]", scoreDict[m], LTE, effP, True)
-        dcfDict[m] ,_,_= util.normalizedDCF(f"[{m}]", scoreDict[m], LTE, effP, 1, 1, True)
+        dcfDict[m] = np.zeros(effPriorLogOdds.size)
+        mindcfDict[m] = np.zeros(effPriorLogOdds.size)
+    for idx, p in enumerate(effPriorLogOdds):
+        effP[idx] = (1 + np.exp(-p)) ** (-1)
+        if len(modelList) > 1:
+            dcfDict["fusion"][idx] = util.normalizedDCF("[fusion]", scoreDict["fusion"], LTE, effP[idx], 1, 1, False)
+            mindcfDict["fusion"][idx] = util.minDcf("[fusion]", scoreDict["fusion"], LTE, effP[idx], False)
+        for m in modelList:
 
+            mindcfDict[m][idx], _, _ = util.minDcf(f"[{m}]", scoreDict[m], LTE, effP[idx], True)
+            dcfDict[m][idx], _, _ = util.normalizedDCF(f"[{m}]", scoreDict[m], LTE, effP[idx], 1, 1, True)
+
+    for i, m in enumerate(modelList):
+
+        plt.plot(effPriorLogOdds, dcfDict[m],label=f'{m} DCF',color=colorList[i])
+        plt.plot(effPriorLogOdds, mindcfDict[m],label=f'{m} min DCF',color=colorList[i], linestyle="--" )
+    # plt.plot(effPriorLogOdds, dcfDict["fusion"], label='fusion DCF', color='black')
+    # plt.plot(effPriorLogOdds, mindcfDict["fusion"], label='fusion min DCF', color='black', linestyle="--")
     # return modelDict, actDCFs, minDCFs
-    pdb.set_trace()
+    plt.grid(True)
+    plt.legend()  # 显示图例
+    plt.ylim([0,0.5])
+    plt.xlim([-4,4])
+    plt.xlabel(r'$\log(\frac{\pi}{1-\pi})$')
+    plt.ylabel("DCF")
+    pylab.show()
 def main(modelName):
     # D [ x0, x1, x2, x3, ...]  xi是列向量，每行都是一个feature
     D, L = load('./data/Train.txt')
@@ -773,7 +814,7 @@ def main(modelName):
 
     #Model choosen list=["MVG","LR","SVM","GMM"]
     # DET(D,Dz,L,0.5)
-    # BayesErrorPlot(D,Dz,L)
+    #BayesErrorPlot(D,L)
     Evaluation(D,L, DTE, LTE)
     model = modelName
     # if model == "MVG":
