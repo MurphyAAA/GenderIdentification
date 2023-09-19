@@ -45,11 +45,14 @@ def minDcf(modelName, score, label, epiT, fusion):
 
         # res[idx] = piT * Cfn * (1 - TPR[idx]) + (1 - piT) * Cfp * FPR[idx]
         res[idx] = epiT * (1 - TPR[idx]) + (1 - epiT) * FPR[idx]
+        # if fusion:
         sysRisk = min(epiT, (1 - epiT))
         res[idx] = res[idx] / sysRisk  # 除 risk of an optimal system
 
         if res[idx] < minDCF:
             minDCF = res[idx]
+    # if fusion:
+    #     pdb.set_trace()
     # pdb.set_trace()
     print("minDCF in {} is : {} -- piT is :{}".format(modelName, minDCF,epiT))
 

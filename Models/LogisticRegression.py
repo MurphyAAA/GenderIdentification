@@ -7,6 +7,7 @@ import util
 
 class LR:
     def __init__(self, DTR, LTR, DVAL, LVAL,  hyperPar):
+        self.name = "LR"
         self.w = []
         self.b = []
         self.parameter = []
@@ -54,7 +55,11 @@ class LR:
         # print("s is : {}".format(s))
         return s
 
-
+    def evaluation(self,DTE):
+        s = np.dot(util.vrow(self.w), DTE) + self.b
+        s = s.reshape(s.size, )
+        # print("s is : {}".format(s))
+        return s
     # def minDcf(self, score, label,piTilde, fusion):
     #     score = np.array(score).flatten()
     #     label = np.array(label).flatten()

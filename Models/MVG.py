@@ -6,6 +6,8 @@ import util
 
 class MVG:
     def __init__(self, DTR, LTR, DVAL, LVAL):
+        self.name = "MVG"
+
         # self.parameter = []
         self.predictList = []
         self.DTR = DTR
@@ -75,7 +77,13 @@ class MVG:
             tlogll1 = self._logpdf_GAU_ND_fast(self.DVAL, self.mu[1], self.sigma[1])
         return tlogll1 - tlogll0
 
-
+    def evaluation(self,DTE):
+        tlogll0 = self._logpdf_GAU_ND_fast(DTE, self.mu[0], self.sigma[0])
+        if self.tied:
+            tlogll1 = self._logpdf_GAU_ND_fast(DTE, self.mu[1], self.sigma[0])
+        else:
+            tlogll1 = self._logpdf_GAU_ND_fast(DTE, self.mu[1], self.sigma[1])
+        return tlogll1 - tlogll0
     # use effective_prior
     # def minDcf(self, score, label, epiT,fusion):
     #     score = np.array(score).flatten()

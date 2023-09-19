@@ -31,7 +31,8 @@ def PCA(D, L, m):
 
     #draw PCA graph
     draw_PCA(DP,L,False,False,False)
-    return DP
+    # return DP
+    return P
 
 def draw_explain_variance(s):
     explain_variance = (s**2)/(np.sum(s**2))
@@ -222,7 +223,7 @@ def FusionKFold(K, D, L, piTilde, hyperPar, modelList, calibration=False):
         # piT = D0.shape[1] / D1.shape[1]
         if "MVG" in modelList:
             modelDict["MVG"] = MVG.MVG(DTR, LTR, DVAL, LVAL)
-            modelDict["MVG"].train(tied=True, bayes=True)
+            modelDict["MVG"].train(tied=True, bayes=True) # train 的时候就得到了训练的参数， 只需要在score的函数里面传进入测试集，就相当于用训练好的模型跑测试集，即可实现evaluation
             scoreDict["MVG"].append(modelDict["MVG"].score())
             # labelDict["MVG"].append(LVAL)
             ##model.estimate(llr)
@@ -238,12 +239,12 @@ def FusionKFold(K, D, L, piTilde, hyperPar, modelList, calibration=False):
             # Cfp = ((piT * Cfn) / 0.99 - (piT) * Cfn) / (1 - piT)
             # minDCF = model.minDcf(score, label,piTilde)
         if "SVM_Linear" in modelList:
-            modelDict["SVM_Linear"] = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar["SVM_Linear"])  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
+            modelDict["SVM_Linear"] = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar["SVM_Linear"], "SVM_Linear")  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
             modelDict["SVM_Linear"].train_linear()
             scoreDict["SVM_Linear"].append(modelDict["SVM_Linear"].score())
             # labelDict["SVM_Linear"].append(LVAL)
         if "SVM_nonlinear" in modelList:
-            modelDict["SVM_nonlinear"] = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar["SVM_nonlinear"])  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
+            modelDict["SVM_nonlinear"] = SVM.SVM(DTR, LTR, DVAL, LVAL, hyperPar["SVM_nonlinear"], "SVM_nonlinear")  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
             # hyper C=1 gamma=1 K=0
             modelDict["SVM_nonlinear"].train_nonlinear(util.svm_kernel_type.poly)
             scoreDict["SVM_nonlinear"].append(modelDict["SVM_nonlinear"].score_nonlinear(util.svm_kernel_type.poly))
@@ -264,15 +265,15 @@ def FusionKFold(K, D, L, piTilde, hyperPar, modelList, calibration=False):
         non_empty_arrays = [v for v in scoreDict.values() if len(v)!=0]
         data_fusion = np.vstack(non_empty_arrays)
         scoreDict["fusion"] = ScoreCalibration(data_fusion, label).KFoldCalibration()
-        minDCFs["fusion"] = util.minDcf("fusion", scoreDict["fusion"], label, piTilde, False)
-        actDCFs["fusion"] = util.normalizedDCF("fusion", scoreDict["fusion"], label, piTilde, 1, 1, False)
+        minDCFs["fusion"] = util.minDcf("[fusion]", scoreDict["fusion"], label, piTilde, False)
+        actDCFs["fusion"] = util.normalizedDCF("[fusion]", scoreDict["fusion"], label, piTilde, 1, 1, False)
 
     for m in modelList:
         if calibration:
             scoreDict[m] = ScoreCalibration(scoreDict[m], label).KFoldCalibration()
         # if len(scoreDict[m]) != 0:
-        minDCFs[m] = util.minDcf(modelDict[m], scoreDict[m], label, piTilde, False)
-        actDCFs[m] = util.normalizedDCF(modelDict[m], scoreDict[m], label, piTilde, 1, 1, False)
+        minDCFs[m] = util.minDcf(f"[{modelDict[m].name}]", scoreDict[m], label, piTilde, False)
+        actDCFs[m] = util.normalizedDCF(f"[{modelDict[m].name}]", scoreDict[m], label, piTilde, 1, 1, False)
 
     return modelDict, actDCFs, minDCFs
 def KFold(modelName, K, D, L, piTilde, hyperPar,fusion,calibration):
@@ -660,15 +661,97 @@ def BayesErrorPlot(D, Dz, L):
     plt.savefig('./images/bayes_error_plot_GMM_SVM_l_MVG_calibration.jpg')
     pylab.show()
 
-def Evaluation(D, L):
-    piT = 0.5
-    hyperPar = {'n0': 2, 'n1': 2}
-    _, score_GMM, FNR, FPR = KFold("GMM", 5, D, L, piT, hyperPar, True, calibration=False)
-    plt.plot(FPR, FNR, color='red', label='GMM')
+def Evaluation(DTR, LTR, DTE, LTE):
+    hyperPar_GMM = {'n0': 2, 'n1': 2}
+    hyperPar_SVM_Linear = {"C": 0.01, "K": 0}
+    hyperPar_SVM_nonlinear = {"C": 0.1, "K": 0, "loggamma": 1, "d": 2, "c": 1}
+    hyperPar_LR = {"lam": 0.001}
+    hyperPar = {"GMM": hyperPar_GMM,
+                "SVM_Linear": hyperPar_SVM_Linear,
+                "SVM_nonlinear": hyperPar_SVM_nonlinear,
+                "LR": hyperPar_LR}
 
+    effP = 0.5
+
+    modelList = ["GMM","SVM_Linear"]
+    dcfDict = {}
+    mindcfDict = {}
+    scoreDict = {
+        'MVG': [],
+        'LR': [],
+        'SVM_Linear': [],
+        'SVM_nonlinear': [],
+        'GMM': []
+    }
+    for m in modelList:
+        dcfDict[m] = 0
+        mindcfDict[m] = 0
+    if len(modelList) > 1:
+        dcfDict["fusion"] = 0
+        mindcfDict["fusion"] = 0
+    # 训练  ！！ 注意这里的models 并不是最好的，而是最后一折的model，最后再改，想办法得到获取minDCF对应的model
+    # Train
+    models, _, _= FusionKFold(5,DTR,LTR,effP, hyperPar,modelList,calibration=True)
+    # models={}
+    # if "MVG" in modelList:
+    #     models["MVG"] = MVG.MVG(DTR, LTR, None, None)
+    #     models["MVG"].train(tied=True,
+    #                            bayes=True)  # train 的时候就得到了训练的参数， 只需要在score的函数里面传进入测试集，就相当于用训练好的模型跑测试集，即可实现evaluation
+    #
+    # if "LR" in modelList:
+    #     models["LR"] = LogisticRegression.LR(DTR, LTR, None, None, hyperPar["LR"]["lam"])
+    #     models["LR"].train()
+    #
+    # if "SVM_Linear" in modelList:
+    #     models["SVM_Linear"] = SVM.SVM(DTR, LTR, None, None, hyperPar["SVM_Linear"],
+    #                                       "SVM_Linear")  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
+    #     models["SVM_Linear"].train_linear()
+    #
+    # if "SVM_nonlinear" in modelList:
+    #     models["SVM_nonlinear"] = SVM.SVM(DTR, LTR, None, None, hyperPar["SVM_nonlinear"],
+    #                                          "SVM_nonlinear")  # {"C":1, "K":0, "gamma":1, "d":2, "c":0}
+    #     # hyper C=1 gamma=1 K=0
+    #     models["SVM_nonlinear"].train_nonlinear(util.svm_kernel_type.poly)
+    # if "GMM" in modelList:
+    #     models["GMM"] = GMM.GMM(DTR, LTR, None, None, hyperPar["GMM"])
+    #     models["GMM"].train()
+
+    # for m in modelList:
+    #     dcfDict[m] = actDcfs[m]
+    #     mindcfDict[m] = minDcfs[m]
+    # if len(modelList) > 1:
+    #     dcfDict["fusion"] = actDcfs["fusion"]
+    #     mindcfDict["fusion"] = minDcfs["fusion"]
+    # evaluation每个模型，得到在测试集上的score， 从新fusion，得到minDCF
+    # pdb.set_trace()
+    print("____________*EVALUATION*____________")
+    for model in models.values():
+        if model.name == "SVM_nonlinear":
+            scoreDict[model.name]= model.evaluation_nonlinear(DTE,util.svm_kernel_type.poly)
+        else:
+            scoreDict[model.name]= model.evaluation(DTE)
+
+    if len(modelList)>1:
+        non_empty_arrays = [v for v in scoreDict.values() if len(v)!=0]
+        data_fusion = np.vstack(non_empty_arrays)
+        scoreDict["fusion"] = ScoreCalibration(data_fusion, LTE).KFoldCalibration()
+
+        mindcfDict["fusion"] = util.minDcf("[fusion]", scoreDict["fusion"], LTE, effP, False)
+        dcfDict["fusion"] = util.normalizedDCF("[fusion]", scoreDict["fusion"], LTE, effP, 1, 1, False)
+
+    for m in modelList:
+        # if calibration:
+        #     scoreDict[m] = ScoreCalibration(scoreDict[m], LTE).KFoldCalibration()
+        # if len(scoreDict[m]) != 0:
+        mindcfDict[m] ,_,_= util.minDcf(f"[{m}]", scoreDict[m], LTE, effP, True)
+        dcfDict[m] ,_,_= util.normalizedDCF(f"[{m}]", scoreDict[m], LTE, effP, 1, 1, True)
+
+    # return modelDict, actDCFs, minDCFs
+    pdb.set_trace()
 def main(modelName):
     # D [ x0, x1, x2, x3, ...]  xi是列向量，每行都是一个feature
     D, L = load('./data/Train.txt')
+    DTE, LTE = load('./data/Test.txt')
     ## plot_hist(D,L)
 
     ## gaussianize the training data
@@ -680,15 +763,18 @@ def main(modelName):
 
     # Dimensionality reduction
     left_dim = 12 # 12 ,11, 10, 9, 8
-    Dz = PCA(D_Znorm, L, left_dim)
-    D = PCA(D, L, left_dim)
+    # Dz = PCA(D_Znorm, L, left_dim)
+    # D = PCA(D, L, left_dim)
+    # DTE = PCA(DTE,LTE,left_dim)
     # D = LDA(D_Znorm, L, 1)
-
+    P = PCA(D, L, left_dim)
+    D = np.dot(P.T, D)
+    DTE = np.dot(P.T, DTE)
 
     #Model choosen list=["MVG","LR","SVM","GMM"]
     # DET(D,Dz,L,0.5)
     # BayesErrorPlot(D,Dz,L)
-    Evaluation(D,L)
+    Evaluation(D,L, DTE, LTE)
     model = modelName
     # if model == "MVG":
     #     model,minDCF= KFold("MVG", 5, D, L,0.5,None)

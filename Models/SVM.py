@@ -5,7 +5,8 @@ import util
 
 
 class SVM:
-    def __init__(self, DTR, LTR, DVAL, LVAL,hyperParam):
+    def __init__(self, DTR, LTR, DVAL, LVAL,hyperParam,name):
+        self.name = name
         self.parameter = hyperParam # { "C":1, "K":0, "loggamma":1, "d":2, "c":0}
         self.predictList = []
         self.DTR = DTR
@@ -16,8 +17,8 @@ class SVM:
         self.Z[self.LTR == 1] = 1
         self.Z[self.LTR == 0] = -1
         # 训练的参数
-        self.wStar=0 # linear
-        self.alphaStar=0 # non linear
+        self.wStar=None # linear
+        self.alphaStar=None # non linear
 
 
     def train_linear(self ):
@@ -56,13 +57,19 @@ class SVM:
 
     def score(self):
         xtilde_val = np.vstack([self.DVAL, np.ones((1, self.DVAL.shape[1])) * self.parameter['K']])
-        if self.wStar !=0:
+        if self.wStar is not None:
             res = np.dot(self.wStar.T,xtilde_val).reshape(-1)
         else:
             print("error: wStar is 0")
         return res
 
-
+    def evaluation(self, Dt):
+        xtilde_val = np.vstack([Dt, np.ones((1, Dt.shape[1])) * self.parameter['K']])
+        if self.wStar is not None:
+            res = np.dot(self.wStar.T,xtilde_val).reshape(-1)
+        else:
+            print("error: wStar is 0")
+        return res
     # def minDcf(self, score, label, epiT,fusion):
     #     score = np.array(score).flatten()
     #     label = np.array(label).flatten()
@@ -153,9 +160,26 @@ class SVM:
             # pdb.set_trace()
             kernel = (np.dot(self.DVAL.T, self.DTR) + self.parameter["c"]) ** self.parameter["d"] + self.parameter["K"] ** 0.5
         # print(kernel)
-        if self.alphaStar !=0:
+        if self.alphaStar is not None:
             S = np.matmul(kernel, util.vcol(self.alphaStar * self.Z)).flatten()
         else:
             print("error: alphaStar is 0")
         return S
 
+    def evaluation_nonlinear(self, DTE, type):
+        if type == util.svm_kernel_type.rbf:
+            Dist = util.vcol((DTE ** 2).sum(0)) + util.vrow((self.DTR ** 2).sum(0)) - 2 * np.dot(DTE.T, self.DTR)
+            # gamma not loggamma
+            #kernel = np.exp(-self.parameter["loggamma"] * Dist) + self.parameter['K'] ** 0.5
+
+            kernel = np.exp(-np.exp(self.parameter["loggamma"])* Dist) + self.parameter['K'] ** 0.5
+
+        else: # polynomial
+            # pdb.set_trace()
+            kernel = (np.dot(DTE.T, self.DTR) + self.parameter["c"]) ** self.parameter["d"] + self.parameter["K"] ** 0.5
+        # print(kernel)
+        if self.alphaStar is not None:
+            S = np.matmul(kernel, util.vcol(self.alphaStar * self.Z)).flatten()
+        else:
+            print("error: alphaStar is 0")
+        return S

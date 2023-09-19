@@ -7,6 +7,7 @@ import util
 
 class GMM:
     def __init__(self, DTR, LTR, DVAL, LVAL, hyperPar):
+        self.name = "GMM"
         self.mu = []
         self.sigma = []
         # 训练的参数
@@ -18,7 +19,6 @@ class GMM:
         self.LVAL = LVAL
         self.n0 = hyperPar["n0"]
         self.n1 = hyperPar["n1"]
-
 
     def logpdf_GAU_ND(self,x, mu, C):  # mu，c都是某一个类别的样本的平均值和协方差矩阵
         M = x.shape[0]  # M 是特征数
@@ -159,7 +159,10 @@ class GMM:
         # predictLabel = np.argmax(S, axis=0)
         return logll1 - logll0
 
-
+    def evaluation(self,DTE):
+        logll0 = self.logpdf_GMM(DTE, self.parameter["gmm0"])
+        logll1 = self.logpdf_GMM(DTE, self.parameter["gmm1"])
+        return logll1 - logll0
     # use effective_prior
     # def minDcf(self, score, label, epiT, fusion):
     #     score = np.array(score).flatten()
