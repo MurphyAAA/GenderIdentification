@@ -19,7 +19,7 @@ def vrow(v):
 def vcol(v):
     return v.reshape((v.size, 1))  # 变成列向量
 
-def minDcf(modelName, score, label, epiT, fusion):
+def minDcf(modelName, score, label, epiT, DET):
     score = np.array(score).flatten()
     label = np.array(label).flatten()
     scoreArray = score.copy()
@@ -56,7 +56,7 @@ def minDcf(modelName, score, label, epiT, fusion):
     # pdb.set_trace()
     print("minDCF in {} is : {} -- piT is :{}".format(modelName, minDCF,epiT))
 
-    if fusion:
+    if DET:
         return minDCF, FNR, FPR
     else:
         return minDCF
