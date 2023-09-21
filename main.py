@@ -649,7 +649,7 @@ def main(modelName):
     # plt.legend(loc="upper center")
     # plt.savefig('./images/gmm_diag.png', dpi=300)
     # plt.show()
-    Evaluation(Dz,L, DTE, LTE)
+    Evaluation(D,L, DTE, LTE)
     # model = modelName
     # if model == "MVG":
     #     model,minDCF= KFold("MVG", 5, D, L,0.5,None)
